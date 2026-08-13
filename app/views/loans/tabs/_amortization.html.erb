@@ -1,0 +1,103 @@
+<%# locals: (account:) %>
+
+<% loan = account.loan %>
+<% schedule = loan.amortization_schedule %>
+
+<% if schedule.any? %>
+  <% zero = Money.new(0, account.currency) %>
+  <% total_interest = loan.total_interest %>
+  <% total_cost = loan.original_balance + total_interest %>
+
+  <div class="grid grid-cols-3 gap-2">
+    <%= summary_card title: t(".payoff_date") do %>
+      <%= loan.payoff_date.strftime("%B %Y") %>
+    <% end %>
+
+    <%= summary_card title: t(".total_interest") do %>
+      <%= format_money total_interest %>
+    <% end %>
+
+    <%= summary_card title: t(".interest_per_dollar") do %>
+      <%= format_money Money.new(
+            total_interest.amount / loan.original_balance.amount,
+            account.currency
+          ) %>
+    <% end %>
+
+    <%= summary_card title: t(".payments_made") do %>
+      <%= t(".of_term", made: loan.payments_made, total: loan.term_months) %>
+    <% end %>
+
+    <%= summary_card title: t(".payments_remaining") do %>
+      <%= loan.term_months - loan.payments_made %>
+    <% end %>
+
+    <%= summary_card title: t(".total_cost") do %>
+      <%= format_money total_cost %>
+    <% end %>
+  </div>
+
+  <div class="bg-container shadow-border-xs rounded-xl mt-2 p-4">
+    <div class="flex items-center justify-between mb-2">
+      <p class="text-sm font-medium text-secondary"><%= t(".chart_title") %></p>
+
+      <div class="flex items-center gap-4">
+        <span class="flex items-center gap-1.5 text-xs text-secondary">
+          <span class="inline-block w-2 h-2 rounded-xs bg-success"></span>
+          <%= t(".principal") %>
+        </span>
+        <span class="flex items-center gap-1.5 text-xs text-secondary">
+          <span class="inline-block w-2 h-2 rounded-xs bg-warning"></span>
+          <%= t(".interest") %>
+        </span>
+      </div>
+    </div>
+
+    <div
+      class="relative h-64 w-full privacy-sensitive"
+      data-controller="amortization-chart"
+      data-amortization-chart-data-value="<%= loan.amortization_split_payload.to_json %>"
+      data-amortization-chart-crossover-date-value="<%= loan.interest_crossover_date&.iso8601 %>"
+      data-amortization-chart-crossover-label-value="<%= t(".crossover") %>"
+      data-amortization-chart-today-value="<%= Date.current.iso8601 %>"
+      data-amortization-chart-today-label-value="<%= t(".today") %>"
+      data-amortization-chart-principal-label-value="<%= t(".principal") %>"
+      data-amortization-chart-interest-label-value="<%= t(".interest") %>"></div>
+  </div>
+
+  <div class="bg-container shadow-border-xs rounded-xl mt-2 p-4 space-y-1">
+    <p class="text-sm font-medium text-secondary mb-2"><%= t(".schedule_title") %></p>
+
+    <div class="grid grid-cols-4 gap-2 px-3 pb-1 text-xs uppercase tracking-wide text-secondary">
+      <span><%= t(".year") %></span>
+      <span class="text-right"><%= t(".principal") %></span>
+      <span class="text-right"><%= t(".interest") %></span>
+      <span class="text-right"><%= t(".balance") %></span>
+    </div>
+
+    <% schedule.group_by { |period| period.date.year }.each do |year, periods| %>
+      <details class="group border-t border-primary" <%= "open" if year == Date.current.year %>>
+        <summary class="grid grid-cols-4 gap-2 px-3 py-2 cursor-pointer list-none rounded-lg hover:bg-surface-hover text-sm text-primary tabular-nums">
+          <span class="font-medium"><%= year %></span>
+          <span class="text-right"><%= format_money periods.sum(zero, &:principal) %></span>
+          <span class="text-right"><%= format_money periods.sum(zero, &:interest) %></span>
+          <span class="text-right"><%= format_money periods.last.balance %></span>
+        </summary>
+
+        <% periods.each do |period| %>
+          <div class="grid grid-cols-4 gap-2 px-3 py-1.5 text-sm text-secondary tabular-nums">
+            <span class="pl-4"><%= period.date.strftime("%b") %></span>
+            <span class="text-right"><%= format_money period.principal %></span>
+            <span class="text-right"><%= format_money period.interest %></span>
+            <span class="text-right"><%= format_money period.balance %></span>
+          </div>
+        <% end %>
+      </details>
+    <% end %>
+  </div>
+<% else %>
+  <div class="bg-container shadow-border-xs rounded-xl p-8 text-center">
+    <p class="text-sm text-secondary"><%= t(".unavailable") %></p>
+    <p class="text-sm text-secondary mt-1"><%= t(".unavailable_hint") %></p>
+  </div>
+<% end %>

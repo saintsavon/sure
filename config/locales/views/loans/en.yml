@@ -28,6 +28,24 @@ en:
       type: Type
       unknown: Unknown
     tabs:
+      amortization:
+        balance: Balance
+        chart_title: Where each payment goes
+        crossover: Principal overtakes interest
+        interest: Interest
+        interest_per_dollar: Interest per $1 Borrowed
+        of_term: "%{made} of %{total}"
+        payments_made: Payments Made
+        payments_remaining: Payments Remaining
+        payoff_date: Payoff Date
+        principal: Principal
+        schedule_title: Payment schedule
+        today: Today
+        total_cost: Total Cost
+        total_interest: Total Interest
+        unavailable: No amortization schedule for this loan.
+        unavailable_hint: Amortization needs a fixed rate, a term, and an opening balance.
+        year: Year
       overview:
         interest_rate: Interest Rate
         monthly_payment: Monthly Payment

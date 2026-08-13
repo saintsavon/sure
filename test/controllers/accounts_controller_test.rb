@@ -21,6 +21,35 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     assert_select "##{dom_id(kraken_item)}"
   end
 
+  test "loan amortization tab renders the schedule" do
+    loan_account = accounts(:loan)
+    loan_account.entries.create!(
+      date: Date.new(2025, 1, 15),
+      name: "Opening balance",
+      currency: "USD",
+      amount: 500_000,
+      entryable: Valuation.new(kind: "opening_anchor")
+    )
+
+    get account_url(loan_account, tab: "amortization")
+
+    assert_response :success
+    assert_select "[data-controller='amortization-chart']"
+    # Yearly rollup rows: 2025 through 2055.
+    assert_select "details", minimum: 30
+  end
+
+  test "loan amortization tab explains itself when the loan cannot amortize" do
+    loan_account = accounts(:loan)
+    loan_account.loan.update!(rate_type: "variable")
+
+    get account_url(loan_account, tab: "amortization")
+
+    assert_response :success
+    assert_select "[data-controller='amortization-chart']", count: 0
+    assert_select "p", text: I18n.t("loans.tabs.amortization.unavailable")
+  end
+
   test "should get show" do
     get account_url(@account)
     assert_response :success
