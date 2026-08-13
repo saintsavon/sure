@@ -15,12 +15,13 @@ fr:
       minimum_payment_placeholder: '100'
     new:
       title: Saisir les détails de la carte de crédit
-    overview:
-      amount_owed: Montant dû
-      annual_fee: Frais annuels
-      apr: TAEG
-      available_credit: Crédit disponible
-      edit_account_details: Modifier les détails du compte
-      expiration_date: Date d'expiration
-      minimum_payment: Paiement minimum
-      unknown: Inconnu
+    tabs:
+      overview:
+        amount_owed: Montant dû
+        annual_fee: Frais annuels
+        apr: TAEG
+        available_credit: Crédit disponible
+        edit_account_details: Modifier les détails du compte
+        expiration_date: Date d'expiration
+        minimum_payment: Paiement minimum
+        unknown: Inconnu

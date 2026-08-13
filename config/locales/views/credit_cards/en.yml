@@ -13,6 +13,20 @@ en:
       expiration_date: Expiration date
       minimum_payment: Minimum payment
       minimum_payment_placeholder: '100'
+      promo_apr: Promotional APR
+      promo_apr_placeholder: '0'
+      promo_balance: Balance on promo
+      promo_balance_placeholder: '5000'
+      promo_deferred_interest_description: Store cards often defer rather than
+        waive. If any balance remains when the promo ends, every month of interest
+        since it started is billed at once. Bank-issued 0% offers usually waive
+        it — leave this off if you are unsure.
+      promo_deferred_interest_label: Interest is deferred, not waived
+      promo_description: Track a 0% or introductory offer separately from the
+        go-to APR above, so the app can tell you what it costs to miss the
+        deadline.
+      promo_ends_on: Promo ends
+      promo_starts_on: Promo started
       treat_balance_as_available_credit_description: Enable if your bank reports
         this card's balance as remaining available credit instead of the amount
         owed. The debt is then derived from the credit limit reported by your
@@ -21,12 +35,26 @@ en:
       treat_balance_as_available_credit_label: Balance is available credit
     new:
       title: Enter credit card details
-    overview:
-      amount_owed: Amount Owed
-      annual_fee: Annual Fee
-      apr: APR
-      available_credit: Available Credit
-      edit_account_details: Edit account details
-      expiration_date: Expiration Date
-      minimum_payment: Minimum Payment
-      unknown: Unknown
+    tabs:
+      overview:
+        amount_owed: Amount Owed
+        annual_fee: Annual Fee
+        apr: APR
+        available_credit: Available Credit
+        deferred_interest_warning: Interest is deferred. If any balance remains
+          on the end date, %{amount} of back interest is billed at once.
+        edit_account_details: Edit account details
+        expiration_date: Expiration Date
+        minimum_payment: Minimum Payment
+        promo_balance: Balance on Promo
+        promo_days_left:
+          one: 1 day left
+          other: "%{count} days left"
+        promo_ends_on: Promo Ends
+        promo_expired: Expired
+        promo_monthly_payoff: Pay Monthly to Clear
+        promo_rate: Promo APR
+        promo_reset_cost: Monthly Interest if Missed
+        promo_starts_on: Promo Started
+        promo_title: Promotional rate
+        unknown: Unknown

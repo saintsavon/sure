@@ -50,6 +50,27 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", text: I18n.t("loans.tabs.amortization.unavailable")
   end
 
+  test "credit card overview shows the promotional panel when a promo is set" do
+    card_account = accounts(:credit_card)
+    card_account.credit_card.update!(
+      promo_apr: 0,
+      promo_balance: 900,
+      promo_ends_on: 60.days.from_now.to_date
+    )
+
+    get account_url(card_account)
+
+    assert_response :success
+    assert_select "h3", text: I18n.t("credit_cards.tabs.overview.promo_title")
+  end
+
+  test "credit card overview hides the promotional panel without a promo" do
+    get account_url(accounts(:credit_card))
+
+    assert_response :success
+    assert_select "h3", text: I18n.t("credit_cards.tabs.overview.promo_title"), count: 0
+  end
+
   test "should get show" do
     get account_url(@account)
     assert_response :success
