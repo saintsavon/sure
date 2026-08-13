@@ -20,7 +20,7 @@
   <%= summary_card title: t(".monthly_payment") do %>
     <% if account.loan.rate_type.present? && account.loan.rate_type != 'fixed' %>
       <%= t(".not_applicable") %>
-    <% elsif account.loan.rate_type == 'fixed' && account.loan.monthly_payment.present? %>
+    <% elsif account.loan.amortizable? %>
       <%= format_money(account.loan.monthly_payment) %>
     <% else %>
       <%= t(".unknown") %>
