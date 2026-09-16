@@ -204,6 +204,9 @@ en:
         preview:
           title: Enable preview features
           description: Opt in to in-progress features tagged preview or canary.
+        budget_rollover:
+          title: Roll over unspent budget
+          description: Carry unspent money in a budget category forward to next month instead of resetting it to zero. Overspending never carries a negative balance forward.
     profiles:
       destroy:
         cannot_remove_self: You cannot remove yourself from the account.

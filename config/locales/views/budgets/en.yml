@@ -64,6 +64,18 @@ en:
       no_source: "No previous budget found to copy from"
       already_initialized: "This budget has already been set up"
   budget_categories:
+    move:
+      invalid: "Couldn't move money between those categories. Check the amount and try again."
+      success: "Money moved between categories"
+    move_money_dialog:
+      trigger: "Cover"
+      title: "Cover %{category}"
+      source_label: "Move money from"
+      amount_label: "Amount"
+      no_sources: "No other categories have budgeted money available to move."
+      submit: "Move money"
+    budget_category:
+      carried_over: "+%{amount} carried over"
     allocation_progress:
       budget_exceeded_html: 'Budget exceeded by <span class="text-red-500 privacy-sensitive">%{amount}</span>'
       left_to_allocate: left to allocate

@@ -1,0 +1,70 @@
+<%# locals: (budget_category:) %>
+
+<%
+  budget = budget_category.budget
+  currency = Money::Currency.new(budget.currency)
+
+  # Only categories with money still allocated to them are worth offering as
+  # a source -- an inheriting subcategory (budgeted_spending 0) shares its
+  # parent's pool and isn't something you can pull an independent amount from.
+  source_options = budget.budget_categories
+    .reject { |bc|
+      bc.id == budget_category.id ||
+        (bc.budgeted_spending || 0) <= 0 ||
+        # A parent/child of the destination can't be a source: the two
+        # allocation edits would collide through parent<->child sync (the
+        # controller rejects it too).
+        bc.category.parent_id == budget_category.category_id ||
+        budget_category.category.parent_id == bc.category_id
+    }
+    .sort_by { |bc| bc.category.display_name }
+    .map { |bc| [ "#{bc.category.display_name} (#{format_money(bc.budgeted_spending_money)})", bc.id ] }
+
+  dialog_id = dom_id(budget_category, :move_money_dialog)
+%>
+
+<div data-controller="dialog-opener" class="inline-block">
+  <%= render DS::Button.new(
+    text: t(".trigger"),
+    icon: "arrow-left-right",
+    variant: "outline",
+    size: :sm,
+    data: { action: "dialog-opener#open" }
+  ) %>
+
+  <%= render DS::Dialog.new(id: dialog_id, auto_open: false, disable_frame: true, width: "sm") do |dialog| %>
+    <% dialog.with_header(title: t(".title", category: budget_category.category.display_name)) %>
+    <% dialog.with_body do %>
+      <% if source_options.empty? %>
+        <p class="text-sm text-secondary"><%= t(".no_sources") %></p>
+      <% else %>
+        <%= form_with url: move_budget_budget_categories_path(budget), method: :post, class: "space-y-4" do %>
+          <%= hidden_field_tag :destination_id, budget_category.id %>
+
+          <div class="form-field">
+            <label class="form-field__label" for="<%= dialog_id %>_source_id"><%= t(".source_label") %></label>
+            <%= select_tag :source_id, options_for_select(source_options), id: "#{dialog_id}_source_id", class: "form-field__input" %>
+          </div>
+
+          <div class="form-field">
+            <label class="form-field__label" for="<%= dialog_id %>_amount"><%= t(".amount_label") %></label>
+            <div class="flex items-center">
+              <span class="text-secondary text-sm mr-2"><%= currency.symbol %></span>
+              <%= number_field_tag :amount, nil,
+                    id: "#{dialog_id}_amount",
+                    class: "form-field__input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                    step: currency.step,
+                    min: currency.step,
+                    required: true %>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2">
+            <%= render DS::Button.new(text: t("shared.cancel"), type: :button, variant: :ghost, data: { action: "DS--dialog#close" }) %>
+            <%= render DS::Button.new(text: t(".submit"), type: :submit, variant: :primary) %>
+          </div>
+        <% end %>
+      <% end %>
+    <% end %>
+  <% end %>
+</div>

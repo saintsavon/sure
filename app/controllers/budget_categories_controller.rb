@@ -41,7 +41,68 @@ class BudgetCategoriesController < ApplicationController
     render :index, status: :unprocessable_entity
   end
 
+  # "Move money" between two categories in the same budget, e.g. to cover an
+  # over-budget category from one with room to spare. Reuses
+  # `update_budgeted_spending!` on each side so parent/subcategory allocation
+  # stays in sync exactly as it does for a normal edit.
+  def move
+    @source = movable_budget_categories.find_by(id: move_params[:source_id])
+    @destination = movable_budget_categories.find_by(id: move_params[:destination_id])
+    amount = move_params[:amount].presence&.to_d || 0
+
+    if invalid_move?(amount)
+      redirect_to budget_budget_categories_path(@budget), alert: t(".invalid")
+      return
+    end
+
+    BudgetCategory.transaction do
+      @source.update_budgeted_spending!(@source.budgeted_spending - amount)
+      @destination.update_budgeted_spending!(@destination.budgeted_spending + amount)
+    end
+
+    respond_to do |format|
+      format.turbo_stream
+      format.html { redirect_to budget_budget_categories_path(@budget), notice: t(".success") }
+    end
+  rescue ActiveRecord::RecordInvalid
+    # update_budgeted_spending! can raise if a concurrent edit leaves a parent
+    # below its subcategory total; surface the friendly alert instead of a 500,
+    # mirroring #update.
+    redirect_to budget_budget_categories_path(@budget), alert: t(".invalid")
+  end
+
   private
+    def movable_budget_categories
+      Current.family.budget_categories.where(budget_id: @budget.id)
+    end
+
+    def move_params
+      params.permit(:source_id, :destination_id, :amount)
+    end
+
+    def invalid_move?(amount)
+      return true if @source.blank? || @destination.blank?
+      return true if @source.id == @destination.id
+      return true if amount <= 0 || amount > (@source.budgeted_spending || 0)
+
+      # Covering an inheriting subcategory would silently convert it into an
+      # individually-budgeted one and inflate its parent's total -- it shares
+      # the parent's pool and has no envelope of its own to fund.
+      return true if @destination.inherits_parent_budget?
+
+      # A move between a category and its own parent/subcategory can't be done
+      # as two independent allocation edits: update_budgeted_spending!'s
+      # parent<->child sync makes the second write read stale or clobber the
+      # first. Sibling and unrelated moves are unaffected.
+      return true if parent_child_pair?(@source, @destination)
+
+      false
+    end
+
+    def parent_child_pair?(a, b)
+      a.category.parent_id == b.category_id || b.category.parent_id == a.category_id
+    end
+
     def budgeted_spending_param
       params.require(:budget_category)
         .permit(:budgeted_spending)

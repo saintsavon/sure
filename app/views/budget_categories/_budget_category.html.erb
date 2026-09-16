@@ -86,6 +86,11 @@
             </span>
           <% end %>
         </div>
+        <% if budget_category.carried_over? %>
+          <div class="w-full text-xs text-success privacy-sensitive">
+            <%= t("budget_categories.budget_category.carried_over", amount: format_money(budget_category.rollover_amount_money)) %>
+          </div>
+        <% end %>
       </div>
 
     <% else %>
@@ -117,5 +122,17 @@
         </div>
       </div>
     <% end %>
+  <% end %>
+
+  <%# Cover/move money lives outside the link above -- it opens a dialog with
+      its own form, and nesting interactive controls inside an <a> is invalid
+      HTML (and would just trigger the drawer navigation on click). %>
+  <%# An inheriting subcategory has no envelope of its own to cover into (it
+      shares the parent's pool), so offer "Cover" only on categories with their
+      own budget -- covering into it would convert its budgeting mode. %>
+  <% if budget_category.initialized? && budget_category.persisted? && budget_category.over_budget? && !budget_category.inherits_parent_budget? %>
+    <div class="px-4 pb-2 -mt-1">
+      <%= render "budget_categories/move_money_dialog", budget_category: budget_category %>
+    </div>
   <% end %>
 <% end %>
