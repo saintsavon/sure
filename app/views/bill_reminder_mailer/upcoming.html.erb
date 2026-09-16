@@ -1,0 +1,20 @@
+<h1><%= t(".heading") %></h1>
+
+<p><%= t(".intro") %></p>
+
+<% { overdue: @overdue, due_soon: @due_soon }.each do |status, bills| %>
+  <% next if bills.blank? %>
+  <h2 style="margin-top: 16px;"><%= t(".#{status}_heading") %></h2>
+  <% bills.each do |bill| %>
+    <p style="margin: 0 0 8px;">
+      <strong><%= bill.merchant&.name || bill.name %></strong> — <%= bill.display_amount_money.format %><br>
+      <span style="color: #666;">
+        <%= t(".due_on", date: I18n.l(bill.due_date, format: :long)) %><% if bill.account.present? %> · <%= bill.account.name %><% end %>
+      </span>
+    </p>
+  <% end %>
+<% end %>
+
+<p style="margin-top: 16px;">
+  <%= link_to t(".cta"), @bills_url, class: "button" %>
+</p>

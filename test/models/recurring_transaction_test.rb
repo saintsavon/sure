@@ -1106,4 +1106,83 @@ class RecurringTransactionTest < ActiveSupport::TestCase
       @family.recurring_transactions.create!(base_attrs)
     end
   end
+
+  # ----- Bills (Feature 2: Bills & Upcoming Obligations) -----
+
+  test "bill? is true for an active expense and false for income or inactive rows" do
+    assert build_bill(next_expected_date: 10.days.from_now.to_date, amount: 50).bill?
+    refute build_bill(next_expected_date: 10.days.from_now.to_date, amount: -50).bill?, "income is not a bill"
+    refute build_bill(next_expected_date: 10.days.from_now.to_date, amount: 70, status: "inactive").bill?, "inactive is not a bill"
+  end
+
+  test "bill? is true for the outflow leg of a recurring transfer" do
+    transfer = @family.recurring_transactions.build(
+      account: @account,
+      destination_account: accounts(:credit_card),
+      name: "Card payment",
+      amount: 200,
+      currency: "USD",
+      expected_day_of_month: 1,
+      last_occurrence_date: Date.current,
+      next_expected_date: 1.month.from_now.to_date,
+      status: "active"
+    )
+
+    assert transfer.bill?
+  end
+
+  test "bill_status reflects the due date relative to the reminder window" do
+    bill = build_bill(next_expected_date: Date.new(2026, 6, 15), amount: 50)
+
+    assert_equal :overdue,  bill.bill_status(as_of: Date.new(2026, 6, 20), reminder_days: 3)
+    assert_equal :due_soon, bill.bill_status(as_of: Date.new(2026, 6, 15), reminder_days: 3) # due today
+    assert_equal :due_soon, bill.bill_status(as_of: Date.new(2026, 6, 13), reminder_days: 3) # within window
+    assert_equal :upcoming, bill.bill_status(as_of: Date.new(2026, 6, 1),  reminder_days: 3)
+  end
+
+  test "bill_status is :inactive for a non-bill" do
+    income = build_bill(next_expected_date: 5.days.from_now.to_date, amount: -50)
+    assert_equal :inactive, income.bill_status
+  end
+
+  test "mark_paid! records an occurrence and advances the schedule" do
+    bill = build_bill(next_expected_date: 3.days.ago.to_date, amount: 50)
+
+    assert_difference -> { bill.reload.occurrence_count }, 1 do
+      bill.mark_paid!
+    end
+
+    assert_equal Date.current, bill.reload.last_occurrence_date
+    assert bill.next_expected_date.future?, "next_expected_date should advance to the future"
+  end
+
+  test "display_amount uses the fixed amount for a non-manual row even with an average" do
+    bill = build_bill(next_expected_date: 5.days.from_now.to_date, amount: 50)
+    bill.update!(manual: false, expected_amount_avg: 999)
+
+    assert_equal 50, bill.display_amount
+    assert_equal 50, bill.display_amount_money.amount
+  end
+
+  test "display_amount uses the tracked average for a manual row with variance" do
+    bill = build_bill(next_expected_date: 6.days.from_now.to_date, amount: 50)
+    bill.update!(manual: true, expected_amount_min: 40, expected_amount_max: 60, expected_amount_avg: 55)
+
+    assert_equal 55, bill.display_amount
+    assert_equal 55, bill.display_amount_money.amount
+  end
+
+  private
+    def build_bill(next_expected_date:, amount:, status: "active")
+      @family.recurring_transactions.create!(
+        account: @account,
+        merchant: @merchant,
+        amount: amount,
+        currency: "USD",
+        expected_day_of_month: next_expected_date.day,
+        last_occurrence_date: next_expected_date - 1.month,
+        next_expected_date: next_expected_date,
+        status: status
+      )
+    end
 end
