@@ -1,0 +1,25 @@
+<%
+  # `update_budgeted_spending!` keeps parent/subcategory allocations in sync
+  # on each side of the move (see BudgetCategory#update_budgeted_spending!),
+  # so re-render every row whose numbers could have shifted: the source and
+  # destination themselves, plus each one's parent + siblings (if it's a
+  # subcategory) or its subcategories (if it's a parent).
+  affected_budget_categories = [ @source, @destination ].each_with_object({}) do |bc, memo|
+    memo[bc.id] = bc
+
+    if bc.subcategory?
+      if (parent = bc.parent_budget_category)
+        memo[parent.id] = parent
+      end
+      bc.siblings.each { |sibling| memo[sibling.id] = sibling }
+    else
+      bc.subcategories.each { |subcategory| memo[subcategory.id] = subcategory }
+    end
+  end.values
+%>
+
+<% affected_budget_categories.each do |budget_category| %>
+  <%= turbo_stream.replace dom_id(budget_category), partial: "budget_categories/budget_category", locals: { budget_category: budget_category } %>
+<% end %>
+
+<%= turbo_stream.replace dom_id(@budget, :budgeted_summary), partial: "budgets/budgeted_summary", locals: { budget: @budget } %>

@@ -6,7 +6,7 @@ class BudgetCategory < ApplicationRecord
 
   validates :budget_id, uniqueness: { scope: :category_id }
 
-  monetize :budgeted_spending, :available_to_spend, :avg_monthly_expense, :median_monthly_expense, :actual_spending
+  monetize :budgeted_spending, :available_to_spend, :avg_monthly_expense, :median_monthly_expense, :actual_spending, :rollover_amount
 
   class Group
     attr_reader :budget_category, :budget_subcategories
@@ -100,14 +100,21 @@ class BudgetCategory < ApplicationRecord
   end
 
   def available_to_spend
+    # Money carried forward from this same category in the prior initialized
+    # budget (envelope budgeting). Always 0 when the family hasn't opted in,
+    # so available_to_spend behaves exactly as it did before rollover existed.
+    rollover_in = budget.family.budget_rollover_enabled? ? (self[:rollover_amount] || 0) : 0
+
     if inherits_parent_budget?
-      # Subcategories using parent budget share the parent's available_to_spend
+      # Subcategories using parent budget share the parent's available_to_spend.
+      # The parent's own available_to_spend already folds in its rollover_in,
+      # so nothing is added here to avoid double-counting.
       parent = parent_budget_category
       return 0 unless parent
       parent.available_to_spend
     elsif subcategory?
       # Subcategory with individual limit
-      (self[:budgeted_spending] || 0) - actual_spending
+      (self[:budgeted_spending] || 0) + rollover_in - actual_spending
     else
       # Parent category
       parent_budget = self[:budgeted_spending] || 0
@@ -130,9 +137,15 @@ class BudgetCategory < ApplicationRecord
       # Spending from shared pool = total spending - ring-fenced spending
       shared_pool_spending = total_spending - subcategories_with_limits_spending
 
-      # Available in shared pool
-      shared_pool - shared_pool_spending
+      # Available in shared pool, plus whatever rolled into this category
+      shared_pool - shared_pool_spending + rollover_in
     end
+  end
+
+  # True when this category is showing a positive envelope balance carried
+  # forward from the prior month. Always false while rollover is off.
+  def carried_over?
+    budget.family.budget_rollover_enabled? && rollover_amount.to_d.positive?
   end
 
   def percent_of_budget_spent
