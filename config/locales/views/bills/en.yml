@@ -1,0 +1,38 @@
+---
+en:
+  bills:
+    index:
+      title: Bills
+      subtitle: Upcoming bills and obligations, drawn from your active recurring transactions.
+    settings:
+      enable_label: Email me bill reminders
+      enable_description: Get an email when a bill is overdue or coming due soon.
+      days_before_label: Remind me this many days before
+      days_option:
+        one: "%{count} day before"
+        other: "%{count} days before"
+    marked_paid: "Marked %{name} as paid"
+    settings_updated: Bill reminder settings updated
+    settings_invalid: Couldn't update bill reminder settings. Please try again.
+    empty:
+      title: No bills yet
+      description: Bills are drawn from your active recurring transactions. Once Sure detects (or you add) recurring expenses, they'll appear here.
+      cta: Manage recurring transactions
+    summary:
+      due_count:
+        one: "%{count} bill due"
+        other: "%{count} bills due"
+      due_total: "%{total} overdue or due soon"
+    groups:
+      overdue: Overdue
+      due_soon: Due soon
+      upcoming: Upcoming
+    status:
+      overdue: Overdue
+      due_soon: Due soon
+      upcoming: Upcoming
+    row:
+      due_on: "Due %{date}"
+      mark_paid: Mark paid
+      mark_paid_confirm: "Mark %{name} as paid? This records a payment for the current cycle."
+      untitled: Untitled bill

@@ -410,6 +410,16 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :bills, only: %i[index] do
+    collection do
+      patch :update_settings
+    end
+
+    member do
+      post :mark_paid
+    end
+  end
+
   resources :family_merchants, only: %i[index new create edit update destroy] do
     collection do
       get :merge
