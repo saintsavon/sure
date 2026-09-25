@@ -15,11 +15,12 @@ pl:
       minimum_payment_placeholder: '100'
     new:
       title: Wprowadź dane karty kredytowej
-    overview:
-      amount_owed: Kwota zadłużenia
-      annual_fee: Opłata roczna
-      apr: RRSO
-      available_credit: Dostępny limit kredytowy
-      expiration_date: Data ważności
-      minimum_payment: Minimalna spłata
-      unknown: Nieznane
+    tabs:
+      overview:
+        amount_owed: Kwota zadłużenia
+        annual_fee: Opłata roczna
+        apr: RRSO
+        available_credit: Dostępny limit kredytowy
+        expiration_date: Data ważności
+        minimum_payment: Minimalna spłata
+        unknown: Nieznane

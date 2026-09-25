@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_08_12_000000) do
+ActiveRecord::Schema[7.2].define(version: 2026_08_13_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -506,6 +506,11 @@ ActiveRecord::Schema[7.2].define(version: 2026_08_12_000000) do
     t.decimal "annual_fee", precision: 10, scale: 2
     t.jsonb "locked_attributes", default: {}
     t.string "subtype"
+    t.decimal "promo_apr", precision: 10, scale: 2
+    t.decimal "promo_balance", precision: 10, scale: 2
+    t.date "promo_starts_on"
+    t.date "promo_ends_on"
+    t.boolean "promo_deferred_interest", default: false, null: false
   end
 
   create_table "cryptos", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

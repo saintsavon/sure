@@ -50,6 +50,50 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", text: I18n.t("loans.tabs.amortization.unavailable")
   end
 
+  test "credit card overview shows the promotional panel when a promo is set" do
+    card_account = accounts(:credit_card)
+    card_account.credit_card.update!(
+      promo_apr: 0,
+      promo_balance: 900,
+      promo_ends_on: 60.days.from_now.to_date
+    )
+
+    get account_url(card_account)
+
+    assert_response :success
+    assert_select "h3", text: I18n.t("credit_cards.tabs.overview.promo_title")
+  end
+
+  test "credit card overview hides the promotional panel without a promo" do
+    get account_url(accounts(:credit_card))
+
+    assert_response :success
+    assert_select "h3", text: I18n.t("credit_cards.tabs.overview.promo_title"), count: 0
+  end
+
+  test "credit card overview omits a deferred-interest amount when it cannot calculate one" do
+    card_account = accounts(:credit_card)
+    card_account.credit_card.update!(
+      apr: nil,
+      promo_apr: 0,
+      promo_deferred_interest: true,
+      promo_starts_on: Date.current,
+      promo_ends_on: 60.days.from_now.to_date
+    )
+
+    get account_url(card_account)
+
+    assert_response :success
+    assert_select "p.text-warning", count: 0
+  end
+
+  test "credit card form prevents entering a negative promotional balance" do
+    get edit_credit_card_url(accounts(:credit_card))
+
+    assert_response :success
+    assert_select "input[name='account[accountable_attributes][promo_balance]'][min='0']"
+  end
+
   test "should get show" do
     get account_url(@account)
     assert_response :success

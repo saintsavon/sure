@@ -33,6 +33,38 @@
                                         placeholder: t("credit_cards.form.annual_fee_placeholder"),
                                         min: 0 %>
       </div>
+
+      <%= render "shared/ruler", classes: "my-4" %>
+
+      <p class="text-secondary text-xs"><%= t("credit_cards.form.promo_description") %></p>
+
+      <div class="flex items-center gap-2">
+        <%= credit_card_form.number_field :promo_apr,
+                                        label: t("credit_cards.form.promo_apr"),
+                                        placeholder: t("credit_cards.form.promo_apr_placeholder"),
+                                        min: 0,
+                                        step: 0.01 %>
+        <%= credit_card_form.money_field :promo_balance,
+                                        label: t("credit_cards.form.promo_balance"),
+                                        placeholder: t("credit_cards.form.promo_balance_placeholder"),
+                                        default_currency: Current.family.currency,
+                                        min: 0 %>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <%= credit_card_form.date_field :promo_starts_on,
+                                      label: t("credit_cards.form.promo_starts_on") %>
+        <%= credit_card_form.date_field :promo_ends_on,
+                                      label: t("credit_cards.form.promo_ends_on") %>
+      </div>
+
+      <div class="flex items-center justify-between gap-2">
+        <div class="space-y-1">
+          <p class="text-sm" id="promo_deferred_interest_label"><%= t("credit_cards.form.promo_deferred_interest_label") %></p>
+          <p class="text-secondary text-xs"><%= t("credit_cards.form.promo_deferred_interest_description") %></p>
+        </div>
+        <%= credit_card_form.toggle :promo_deferred_interest, "aria-labelledby": "promo_deferred_interest_label" %>
+      </div>
     <% end %>
 
     <% enable_banking_account = account.provider_account_for("EnableBankingAccount") if account.persisted? %>

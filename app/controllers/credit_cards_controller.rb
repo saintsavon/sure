@@ -7,7 +7,12 @@ class CreditCardsController < ApplicationController
     :minimum_payment,
     :apr,
     :annual_fee,
-    :expiration_date
+    :expiration_date,
+    :promo_apr,
+    :promo_balance,
+    :promo_starts_on,
+    :promo_ends_on,
+    :promo_deferred_interest
   )
 
   def update

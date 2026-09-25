@@ -1,0 +1,83 @@
+<%# locals: (account:) %>
+
+<% card = account.credit_card %>
+
+<% if card.promo? %>
+  <div class="bg-container shadow-border-xs rounded-xl mb-2 p-4">
+    <div class="flex items-center justify-between gap-2 mb-3">
+      <h3 class="font-medium text-primary"><%= t(".promo_title") %></h3>
+      <%= render "shared/badge", color: (card.promo_expiring_soon? ? "warning" : nil) do %>
+        <%= card.promo_active? ?
+              t(".promo_days_left", count: card.promo_days_remaining) :
+              t(".promo_expired") %>
+      <% end %>
+    </div>
+
+    <div class="grid grid-cols-3 gap-2">
+      <%= summary_card title: t(".promo_rate") do %>
+        <%= number_to_percentage(card.promo_apr, precision: 2) %>
+      <% end %>
+
+      <%= summary_card title: t(".promo_balance") do %>
+        <%= format_money(card.promo_balance_money) || t(".unknown") %>
+      <% end %>
+
+      <%= summary_card title: t(".promo_ends_on") do %>
+        <%= l(card.promo_ends_on, format: :long) %>
+      <% end %>
+
+      <%= summary_card title: t(".promo_monthly_payoff") do %>
+        <%= format_money(card.promo_monthly_payoff) || t(".unknown") %>
+      <% end %>
+
+      <%= summary_card title: t(".promo_reset_cost") do %>
+        <%= format_money(card.promo_reset_monthly_interest) || t(".unknown") %>
+      <% end %>
+
+      <%= summary_card title: t(".promo_starts_on") do %>
+        <%= card.promo_starts_on ? l(card.promo_starts_on, format: :long) : t(".unknown") %>
+      <% end %>
+    </div>
+
+    <% if card.promo_deferred_interest? && (deferred_interest_due = card.promo_deferred_interest_due) %>
+      <p class="text-xs text-warning mt-3">
+        <%= t(".deferred_interest_warning", amount: format_money(deferred_interest_due)) %>
+      </p>
+    <% end %>
+  </div>
+<% end %>
+
+<div class="grid grid-cols-3 gap-2">
+  <%= summary_card title: t(".amount_owed") do %>
+    <%= format_money(account.balance_money) %>
+  <% end %>
+
+  <%= summary_card title: t(".available_credit") do %>
+    <%= format_money(card.available_credit_money) || t(".unknown") %>
+  <% end %>
+
+  <%= summary_card title: t(".minimum_payment") do %>
+    <%= format_money(card.minimum_payment_money || Money.new(0, account.currency)) %>
+  <% end %>
+
+  <%= summary_card title: t(".apr") do %>
+    <%= card.apr ? number_to_percentage(card.apr, precision: 2) : t(".unknown") %>
+  <% end %>
+
+  <%= summary_card title: t(".expiration_date") do %>
+    <%= card.expiration_date ? l(card.expiration_date, format: :long) : t(".unknown") %>
+  <% end %>
+
+  <%= summary_card title: t(".annual_fee") do %>
+    <%= format_money(card.annual_fee_money || Money.new(0, account.currency)) %>
+  <% end %>
+</div>
+
+<div class="flex justify-center py-8">
+  <%= render DS::Link.new(
+    text: t(".edit_account_details"),
+    variant: "ghost",
+    href: edit_credit_card_path(account),
+    frame: :modal
+  ) %>
+</div>
