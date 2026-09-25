@@ -13,6 +13,10 @@ class CreditCard < ApplicationRecord
   # Deferred interest accrues from the promo start, so the figure is
   # meaningless without it.
   validates :promo_starts_on, presence: true, if: :promo_deferred_interest?
+  validates :promo_apr, :promo_balance, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+  validates :promo_ends_on,
+            comparison: { greater_than_or_equal_to: :promo_starts_on },
+            if: -> { promo_starts_on.present? && promo_ends_on.present? }
 
   class << self
     def color
@@ -83,6 +87,7 @@ class CreditCard < ApplicationRecord
   # bank-issued kind — forgive it, so this is nil for them.
   def promo_deferred_interest_due
     return nil unless promo_deferred_interest? && promo_starts_on.present?
+    return nil unless promo_ends_on && promo_starts_on <= promo_ends_on
 
     monthly = promo_reset_monthly_interest
     monthly && monthly * whole_months_between(promo_starts_on, promo_ends_on)

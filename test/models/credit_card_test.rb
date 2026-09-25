@@ -82,6 +82,42 @@ class CreditCardTest < ActiveSupport::TestCase
     assert_includes @card.errors[:promo_starts_on], "can't be blank"
   end
 
+  test "promo dates must be chronological" do
+    @card.assign_attributes(
+      promo_starts_on: Date.new(2027, 1, 10),
+      promo_ends_on: Date.new(2026, 1, 10)
+    )
+
+    assert_not @card.valid?
+    assert_predicate @card.errors[:promo_ends_on], :present?
+  end
+
+  test "deferred interest is unknown for a reversed date range" do
+    @card.assign_attributes(
+      promo_apr: 0,
+      promo_balance: 800,
+      promo_deferred_interest: true,
+      promo_starts_on: Date.new(2027, 1, 10),
+      promo_ends_on: Date.new(2026, 1, 10)
+    )
+
+    assert_nil @card.promo_deferred_interest_due
+  end
+
+  test "promotional APR cannot be negative" do
+    @card.promo_apr = -0.01
+
+    assert_not @card.valid?
+    assert_predicate @card.errors[:promo_apr], :present?
+  end
+
+  test "promotional balance cannot be negative" do
+    @card.promo_balance = -1
+
+    assert_not @card.valid?
+    assert_predicate @card.errors[:promo_balance], :present?
+  end
+
   test "monthly interest at the go-to rate is what the balance costs after reset" do
     @card.assign_attributes(promo_apr: 0, promo_balance: 9_367, promo_ends_on: Date.new(2027, 1, 10))
 

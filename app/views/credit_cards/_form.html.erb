@@ -47,7 +47,8 @@
         <%= credit_card_form.money_field :promo_balance,
                                         label: t("credit_cards.form.promo_balance"),
                                         placeholder: t("credit_cards.form.promo_balance_placeholder"),
-                                        default_currency: Current.family.currency %>
+                                        default_currency: Current.family.currency,
+                                        min: 0 %>
       </div>
 
       <div class="flex items-center gap-2">

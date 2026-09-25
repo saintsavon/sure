@@ -39,9 +39,9 @@
       <% end %>
     </div>
 
-    <% if card.promo_deferred_interest? %>
+    <% if card.promo_deferred_interest? && (deferred_interest_due = card.promo_deferred_interest_due) %>
       <p class="text-xs text-warning mt-3">
-        <%= t(".deferred_interest_warning", amount: format_money(card.promo_deferred_interest_due)) %>
+        <%= t(".deferred_interest_warning", amount: format_money(deferred_interest_due)) %>
       </p>
     <% end %>
   </div>
