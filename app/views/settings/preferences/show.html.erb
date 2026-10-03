@@ -225,3 +225,24 @@
     </label>
   <% end %>
 <% end %>
+
+<%# Envelope budgeting rollover toggle -- family-wide (not per-user), so it
+    posts `family[budget_rollover_enabled]` instead of a `user[...]` field,
+    but otherwise mirrors the preview features card above exactly. %>
+<%= settings_section do %>
+  <%= form_with url: settings_preferences_path, method: :patch,
+        data: { controller: "auto-submit-form" } do %>
+    <label for="family_budget_rollover_enabled" class="flex cursor-pointer items-center gap-4 justify-between">
+      <div class="text-sm space-y-1">
+        <p class="text-primary font-medium"><%= t(".budget_rollover.title") %></p>
+        <p class="text-secondary"><%= t(".budget_rollover.description") %></p>
+      </div>
+      <%= render DS::Toggle.new(
+            id: "family_budget_rollover_enabled",
+            name: "family[budget_rollover_enabled]",
+            checked: @user.family.budget_rollover_enabled?,
+            data: { auto_submit_form_target: "auto" }
+      ) %>
+    </label>
+  <% end %>
+<% end %>
