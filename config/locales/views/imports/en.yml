@@ -155,6 +155,17 @@ en:
         category_label: Category (optional)
         notes_label: Memo (optional)
         apply_configuration: Apply configuration
+      firefly_import:
+        preconfigured_notice: We have pre-configured your Firefly III import for you. Please proceed to the next step.
+        account_notice: The account and the direction of each amount are detected automatically from the Type, Source and Destination columns. Transfers import as a single outflow from the source account.
+        leave_empty: Leave empty
+        date_label: Date
+        date_format_label: Date format
+        amount_label: Amount
+        name_label: Description (optional)
+        category_label: Category (optional)
+        notes_label: Notes (optional)
+        apply_configuration: Apply configuration
       rule_import:
         description: Configure your rule import. Rules will be created or updated based
           on the CSV data.
@@ -339,6 +350,7 @@ en:
       mint_import: "Mint import"
       actual_import: "Actual import"
       ynab_import: "YNAB import"
+      firefly_import: "Firefly III import"
       qif_import: "QIF import"
       category_import: "Category import"
       rule_import: "Rule import"
@@ -374,6 +386,7 @@ en:
           mint_import: "Mint"
           actual_import: "Actual"
           ynab_import: "YNAB"
+          firefly_import: "Firefly III"
           qif_import: "QIF"
           category_import: "Category"
           rule_import: "Rule"
@@ -401,6 +414,7 @@ en:
       tab_financial_tools: Financial Tools & Files
       tab_raw_data: Raw Data
       import_ynab: Import from YNAB
+      import_firefly: Import from Firefly III
       import_accounts: Import accounts
       import_categories: Import categories
       import_merchants: Import merchants

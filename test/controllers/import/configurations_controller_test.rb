@@ -23,6 +23,18 @@ class Import::ConfigurationsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "show renders the Firefly III configuration partial" do
+    firefly = @user.family.imports.create!(
+      type: "FireflyImport",
+      raw_file_str: file_fixture("imports/firefly.csv").read,
+      col_sep: ","
+    )
+
+    get import_configuration_url(firefly)
+
+    assert_response :success
+  end
+
   test "updating a valid configuration regenerates rows" do
     TransactionImport.any_instance.expects(:generate_rows_from_csv).once
 
