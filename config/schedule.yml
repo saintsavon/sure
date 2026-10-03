@@ -66,3 +66,9 @@ sweep_expired_goal_pledges:
   class: "SweepExpiredGoalPledgesJob"
   queue: "scheduled"
   description: "Marks goal pledges that passed their 7-day window as expired"
+
+send_bill_reminders:
+  cron: "0 13 * * *" # daily at 1:00 PM UTC
+  class: "BillRemindersJob"
+  queue: "scheduled"
+  description: "Emails opted-in families a digest of bills that are overdue or coming due soon"
