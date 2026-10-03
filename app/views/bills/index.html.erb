@@ -1,0 +1,72 @@
+<%# Bills hub: overdue / due soon / upcoming obligations derived from
+    active RecurringTransaction rows (see RecurringTransaction#bill?). No
+    separate bills table — this is a view over recurring transactions. %>
+<div class="@container space-y-6 pb-6 lg:pb-12">
+  <header>
+    <h1 class="text-2xl font-semibold text-primary"><%= t("bills.index.title") %></h1>
+    <p class="text-sm text-secondary mt-1"><%= t("bills.index.subtitle") %></p>
+  </header>
+
+  <%= render DS::Card.new do %>
+    <div class="flex items-center justify-between gap-4">
+      <div>
+        <p class="text-sm font-medium text-primary"><%= t("bills.settings.enable_label") %></p>
+        <p class="text-xs text-secondary"><%= t("bills.settings.enable_description") %></p>
+      </div>
+      <%= styled_form_with model: @family,
+                           url: update_settings_bills_path,
+                           method: :patch,
+                           data: { controller: "auto-submit-form" } do |f| %>
+        <%= f.toggle :bill_reminders_enabled, data: { auto_submit_form_target: "auto" } %>
+
+        <% if @family.bill_reminders_enabled? %>
+          <div class="mt-4 max-w-xs">
+            <%= f.select :bill_reminder_days_before,
+                (1..14).map { |d| [ t("bills.settings.days_option", count: d), d ] },
+                { label: t("bills.settings.days_before_label"), selected: @family.bill_reminder_days_before },
+                { data: { auto_submit_form_target: "auto" } } %>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
+
+  <% total_due = @overdue + @due_soon %>
+  <% if @overdue.empty? && @due_soon.empty? && @upcoming.empty? %>
+    <%= render DS::Card.new do %>
+      <%= render DS::EmptyState.new(
+        icon: "receipt",
+        title: t("bills.empty.title"),
+        description: t("bills.empty.description")
+      ) do |empty| %>
+        <% empty.with_action do %>
+          <%= render DS::Link.new(
+            text: t("bills.empty.cta"),
+            variant: "primary",
+            href: recurring_transactions_path
+          ) %>
+        <% end %>
+      <% end %>
+    <% end %>
+  <% else %>
+    <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-secondary">
+      <span><%= t("bills.summary.due_count", count: total_due.size) %></span>
+      <% if total_due.any? %>
+        <span class="text-subdued">&middot;</span>
+        <span class="privacy-sensitive"><%= t("bills.summary.due_total", total: totals_by_currency(collection: total_due, money_method: :display_amount_money)) %></span>
+      <% end %>
+    </div>
+
+    <% if @overdue.any? %>
+      <%= render "bills/group", title: t("bills.groups.overdue"), bills: @overdue, status: :overdue %>
+    <% end %>
+
+    <% if @due_soon.any? %>
+      <%= render "bills/group", title: t("bills.groups.due_soon"), bills: @due_soon, status: :due_soon %>
+    <% end %>
+
+    <% if @upcoming.any? %>
+      <%= render "bills/group", title: t("bills.groups.upcoming"), bills: @upcoming, status: :upcoming %>
+    <% end %>
+  <% end %>
+</div>

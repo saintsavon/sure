@@ -1,0 +1,13 @@
+<%= t(".heading") %>
+
+<%= t(".intro") %>
+<% { overdue: @overdue, due_soon: @due_soon }.each do |status, bills| %>
+<% next if bills.blank? %>
+
+<%= t(".#{status}_heading") %>
+<% bills.each do |bill| %>
+- <%= bill.merchant&.name || bill.name %> | <%= bill.display_amount_money.format %> | <%= t(".due_on", date: I18n.l(bill.due_date, format: :long)) %><% if bill.account.present? %> | <%= bill.account.name %><% end %>
+<% end %>
+<% end %>
+
+<%= t(".cta") %>: <%= @bills_url %>

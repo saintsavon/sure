@@ -68,6 +68,11 @@ class RecurringTransaction < ApplicationRecord
 
   scope :for_family, ->(family) { where(family: family) }
   scope :expected_soon, -> { active.where("next_expected_date <= ?", 1.month.from_now) }
+  # Active rows shaped like a "bill": an expense (positive amount) or the
+  # outflow leg of a recurring transfer. Excludes income (negative amount).
+  # Mirrors `bill?` below in SQL so callers that don't need per-row Ruby
+  # objects (e.g. the reminders job) can filter in the database.
+  scope :bills, -> { active.where("amount > 0 OR destination_account_id IS NOT NULL") }
   scope :accessible_by, ->(user) {
     accessible_account_ids = Account.accessible_by(user).select(:id)
     # A recurring row is accessible when:
@@ -305,6 +310,58 @@ class RecurringTransaction < ApplicationRecord
     update!(status: "active")
   end
 
+  # ----- Bills (#Feature 2: Bills & Upcoming Obligations) -----
+
+  # A "bill" is an active recurring outflow: an expense (positive amount) or
+  # the outflow leg of a recurring transfer. Income (negative amount) is
+  # never a bill, and neither is an inactive row.
+  def bill?
+    active? && (amount.to_d.positive? || transfer?)
+  end
+
+  # The date this bill is next expected to occur.
+  def due_date
+    next_expected_date
+  end
+
+  # Where this bill sits relative to `as_of`, given a family's configured
+  # reminder lead time (days before `due_date` that count as "due soon").
+  # Returns :inactive for non-bills (mirrors `bill?`) so callers can safely
+  # call this without checking `bill?` first.
+  def bill_status(as_of: Date.current, reminder_days: family.bill_reminder_days_before)
+    return :inactive unless bill?
+
+    if due_date < as_of
+      :overdue
+    elsif due_date <= as_of + reminder_days
+      :due_soon
+    else
+      :upcoming
+    end
+  end
+
+  # Record today as a paid occurrence, advancing last_occurrence_date and
+  # next_expected_date. Reuses the existing occurrence-tracking machinery
+  # (no separate "paid" concept) — a bill amount isn't passed, so manual
+  # amount-variance tracking is left untouched.
+  def mark_paid!
+    record_occurrence!(Date.current)
+  end
+
+  # The amount to display for this bill: the tracked average for a manual
+  # recurring row that has variance, otherwise the fixed amount. Mirrors
+  # `projected_entry`'s amount logic (which also gates the average on
+  # `manual?`) so a row reads the same on the Bills page and in projections.
+  def display_amount
+    use_average_amount? ? expected_amount_avg : amount
+  end
+
+  # Reuses the Monetizable-generated `*_money` accessors rather than hand-
+  # rolling `Money.new`, so currency/nil handling stays in one place.
+  def display_amount_money
+    use_average_amount? ? expected_amount_avg_money : amount_money
+  end
+
   # Update based on a new transaction occurrence
   def record_occurrence!(transaction_date, transaction_amount = nil)
     self.last_occurrence_date = transaction_date
@@ -426,6 +483,10 @@ class RecurringTransaction < ApplicationRecord
       relation.where("EXTRACT(DAY FROM entries.date) BETWEEN ? AND ?",
                      [ expected_day_of_month - 2, 1 ].max,
                      [ expected_day_of_month + 2, 31 ].min)
+    end
+
+    def use_average_amount?
+      manual? && expected_amount_avg.present?
     end
 
     def monetizable_currency

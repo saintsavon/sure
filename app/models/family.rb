@@ -141,6 +141,7 @@ class Family < ApplicationRecord
   validates :locale, inclusion: { in: I18n.available_locales.map(&:to_s) }
   validates :date_format, inclusion: { in: DATE_FORMATS.map(&:last) }
   validates :month_start_day, inclusion: { in: 1..28 }
+  validates :bill_reminder_days_before, numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 30 }
   validates :moniker, inclusion: { in: MONIKERS }
   validates :assistant_type, inclusion: { in: ASSISTANT_TYPES }
   validates :default_account_sharing, inclusion: { in: SHARING_DEFAULTS }

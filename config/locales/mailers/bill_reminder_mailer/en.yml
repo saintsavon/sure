@@ -1,0 +1,14 @@
+---
+en:
+  bill_reminder_mailer:
+    upcoming:
+      subject:
+        one: "1 bill needs your attention on %{product_name}"
+        other: "%{count} bills need your attention on %{product_name}"
+      heading: Bills due
+      intro: "These bills are overdue or coming due soon:"
+      overdue_heading: Overdue
+      due_soon_heading: Due soon
+      due_on: "Due %{date}"
+      account: Account
+      cta: View bills

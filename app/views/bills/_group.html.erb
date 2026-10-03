@@ -1,0 +1,48 @@
+<%# locals: (title:, bills:, status:) %>
+<%
+  # Map the group to a status pill tone. :neutral/:warning/:error resolve via
+  # DS::Pill's semantic aliases.
+  tone = { overdue: :error, due_soon: :warning, upcoming: :neutral }.fetch(status, :neutral)
+%>
+<%= render DS::Card.new do %>
+  <div class="space-y-3">
+    <div class="flex items-center justify-between gap-2">
+      <h2 class="text-sm font-medium text-primary"><%= title %></h2>
+      <span class="text-xs text-secondary privacy-sensitive">
+        <%= totals_by_currency(collection: bills, money_method: :display_amount_money) %>
+      </span>
+    </div>
+
+    <div class="divide-y divide-secondary">
+      <% bills.each do |bill| %>
+        <% bill_name = bill.merchant&.name.presence || bill.name.presence || t("bills.row.untitled") %>
+        <div class="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+          <%= render DS::FilledIcon.new(variant: :text, text: bill_name, size: "lg", rounded: true) %>
+
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium text-primary truncate"><%= bill_name %></p>
+            <p class="text-xs text-secondary truncate">
+              <%= t("bills.row.due_on", date: I18n.l(bill.due_date, format: :long)) %>
+              <% if bill.account.present? %>
+                <span class="text-subdued">&middot;</span> <%= bill.account.name %>
+              <% end %>
+            </p>
+          </div>
+
+          <div class="flex items-center gap-3 flex-shrink-0">
+            <div class="text-right">
+              <p class="text-sm font-medium text-primary privacy-sensitive"><%= format_money(bill.display_amount_money) %></p>
+              <%= render DS::Pill.new(label: t("bills.status.#{status}"), tone: tone, marker: false) %>
+            </div>
+
+            <%= button_to t("bills.row.mark_paid"),
+                  mark_paid_bill_path(bill),
+                  method: :post,
+                  class: "text-xs font-medium text-link hover:underline whitespace-nowrap",
+                  data: { turbo_confirm: t("bills.row.mark_paid_confirm", name: bill_name) } %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>
