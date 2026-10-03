@@ -35,11 +35,14 @@
               <%= render DS::Pill.new(label: t("bills.status.#{status}"), tone: tone, marker: false) %>
             </div>
 
-            <%= button_to t("bills.row.mark_paid"),
-                  mark_paid_bill_path(bill),
-                  method: :post,
-                  class: "text-xs font-medium text-link hover:underline whitespace-nowrap",
-                  data: { turbo_confirm: t("bills.row.mark_paid_confirm", name: bill_name) } %>
+            <% account_ids = [ bill.account_id, bill.destination_account_id ].compact %>
+            <% if account_ids.any? ? account_ids.all? { |id| @writable_account_ids.include?(id) } : Current.user.admin? %>
+              <%= button_to t("bills.row.mark_paid"),
+                    mark_paid_bill_path(bill),
+                    method: :post,
+                    class: "text-xs font-medium text-link hover:underline whitespace-nowrap",
+                    data: { turbo_confirm: t("bills.row.mark_paid_confirm", name: bill_name) } %>
+            <% end %>
           </div>
         </div>
       <% end %>

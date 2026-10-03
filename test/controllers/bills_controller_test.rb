@@ -80,6 +80,16 @@ class BillsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0, bill.reload.occurrence_count
   end
 
+  test "read-only shared bills do not show a Mark paid action" do
+    create_bill(next_expected_date: 2.days.ago.to_date, amount: 50, account: accounts(:credit_card))
+    sign_in users(:family_member)
+
+    get bills_path
+
+    assert_response :success
+    assert_select "form[action*='mark_paid']", count: 0
+  end
+
   private
     def create_bill(next_expected_date:, amount:, status: "active", account: @account)
       @family.recurring_transactions.create!(

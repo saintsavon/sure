@@ -8,6 +8,7 @@ class BillsController < ApplicationController
                    .bills
                    .accessible_by(Current.user)
                    .includes(:merchant, :account)
+    @writable_account_ids = @family.accounts.writable_by(Current.user).pluck(:id).to_set
 
     grouped = bills.group_by { |bill| bill.bill_status(reminder_days: @family.bill_reminder_days_before) }
 
