@@ -1,0 +1,6 @@
+type,amount,currency_code,date,description,category,source_name,destination_name,notes
+Withdrawal,-1500.00,USD,2024-01-01T00:00:00+00:00,Landlord,Housing,Checking,Landlord,January rent
+Withdrawal,-4.25,USD,2024-01-02T00:00:00+00:00,Coffee Shop,Food,Credit Card,Coffee Shop,Morning coffee
+Deposit,2500.00,USD,2024-01-05T00:00:00+00:00,Employer,Income,Employer,Checking,Monthly salary
+Transfer,250.00,USD,2024-01-06T00:00:00+00:00,Move to savings,,Checking,Savings,Move to savings
+Opening balance,100.00,USD,2024-01-04T00:00:00+00:00,,,Initial balance account,Checking,Reconciliation balance adjustment
