@@ -60,6 +60,7 @@ class Budget < ApplicationRecord
 
         budget.current_user = user
         budget.sync_budget_categories
+        Budget::RolloverCalculator.new(budget).calculate!
 
         budget
       end

@@ -9,6 +9,7 @@ class BudgetCategoriesControllerTest < ActionDispatch::IntegrationTest
 
     @budget = budgets(:one)
     @family = @budget.family
+    @family.update!(budget_rollover_enabled: true)
 
     @parent_category = Category.create!(
       name: "Bills controller test",
@@ -137,6 +138,147 @@ class BudgetCategoriesControllerTest < ActionDispatch::IntegrationTest
       "matched cc_payment outflow must not appear in Uncategorized drilldown"
     refute_includes @response.body, "BUG_1059_REPRO_INFLOW",
       "matched funds_movement inflow must not appear in Uncategorized drilldown"
+  end
+
+  test "#move transfers budgeted_spending from source to destination" do
+    post move_budget_budget_categories_path(@budget),
+         params: { source_id: @water_budget_category.id, destination_id: @electric_budget_category.id, amount: 20 }
+
+    assert_redirected_to budget_budget_categories_path(@budget)
+    assert_equal 30.0, @water_budget_category.reload.budgeted_spending.to_f
+    assert_equal 120.0, @electric_budget_category.reload.budgeted_spending.to_f
+  end
+
+  test "#move rejects an amount that is not positive" do
+    assert_no_changes -> { @water_budget_category.reload.budgeted_spending.to_f } do
+      post move_budget_budget_categories_path(@budget),
+           params: { source_id: @water_budget_category.id, destination_id: @electric_budget_category.id, amount: 0 }
+    end
+
+    assert_redirected_to budget_budget_categories_path(@budget)
+    assert_equal 100.0, @electric_budget_category.reload.budgeted_spending.to_f
+  end
+
+  test "#move rejects an amount larger than the source's available balance" do
+    assert_no_changes -> { @water_budget_category.reload.budgeted_spending.to_f } do
+      post move_budget_budget_categories_path(@budget),
+           params: { source_id: @water_budget_category.id, destination_id: @electric_budget_category.id, amount: 999 }
+    end
+
+    assert_redirected_to budget_budget_categories_path(@budget)
+    assert_equal 100.0, @electric_budget_category.reload.budgeted_spending.to_f
+  end
+
+  test "#move can transfer carried funds with no new monthly allocation" do
+    prior = Budget.create!(
+      family: @family,
+      start_date: 1.month.ago.beginning_of_month,
+      end_date: 1.month.ago.end_of_month,
+      budgeted_spending: 500,
+      currency: "USD"
+    )
+    BudgetCategory.create!(budget: prior, category: @water_category, budgeted_spending: 40, currency: "USD")
+    @water_budget_category.update!(budgeted_spending: 0)
+    Budget::RolloverCalculator.new(@budget).calculate!
+    assert_equal 40, @water_budget_category.reload.rollover_amount
+
+    post move_budget_budget_categories_path(@budget),
+         params: { source_id: @water_budget_category.id, destination_id: @electric_budget_category.id, amount: 20 }
+
+    assert_redirected_to budget_budget_categories_path(@budget)
+    assert_equal 0, @water_budget_category.reload.budgeted_spending
+    assert_equal 20, @water_budget_category.rollover_amount
+    assert_equal 20, @electric_budget_category.reload.rollover_amount
+
+    Budget::RolloverCalculator.new(@budget).calculate!
+    assert_equal 20, @water_budget_category.reload.rollover_amount
+    assert_equal 20, @electric_budget_category.reload.rollover_amount
+  end
+
+  test "#move is unavailable until the family enables rollover" do
+    @family.update!(budget_rollover_enabled: false)
+
+    assert_no_changes -> { [ @water_budget_category.reload.budgeted_spending, @electric_budget_category.reload.budgeted_spending ] } do
+      post move_budget_budget_categories_path(@budget),
+           params: { source_id: @water_budget_category.id, destination_id: @electric_budget_category.id, amount: 20 }
+    end
+
+    assert_redirected_to budget_budget_categories_path(@budget)
+  end
+
+  test "#move cannot take money already spent by the source" do
+    create_transaction(date: @budget.start_date, category: @water_category, amount: 40)
+
+    assert_no_changes -> { [ @water_budget_category.reload.budgeted_spending, @electric_budget_category.reload.budgeted_spending ] } do
+      post move_budget_budget_categories_path(@budget),
+           params: { source_id: @water_budget_category.id, destination_id: @electric_budget_category.id, amount: 20 }
+    end
+
+    assert_redirected_to budget_budget_categories_path(@budget)
+  end
+
+  test "#move rejects a budget category belonging to another family" do
+    other_family = families(:empty)
+    other_category = Category.create!(name: "Other family category", family: other_family, color: "#123456")
+    other_budget = Budget.create!(
+      family: other_family,
+      start_date: @budget.start_date,
+      end_date: @budget.end_date,
+      budgeted_spending: 200,
+      currency: "USD"
+    )
+    other_budget_category = BudgetCategory.create!(
+      budget: other_budget,
+      category: other_category,
+      budgeted_spending: 100,
+      currency: "USD"
+    )
+
+    assert_no_changes -> { other_budget_category.reload.budgeted_spending.to_f } do
+      post move_budget_budget_categories_path(@budget),
+           params: { source_id: other_budget_category.id, destination_id: @electric_budget_category.id, amount: 20 }
+    end
+
+    assert_redirected_to budget_budget_categories_path(@budget)
+    assert_equal 100.0, @electric_budget_category.reload.budgeted_spending.to_f
+  end
+
+  test "#move responds with turbo_stream re-rendering the affected rows" do
+    post move_budget_budget_categories_path(@budget),
+         params: { source_id: @water_budget_category.id, destination_id: @electric_budget_category.id, amount: 20 },
+         as: :turbo_stream
+
+    assert_response :success
+    assert_includes @response.body, dom_id(@water_budget_category)
+    assert_includes @response.body, dom_id(@electric_budget_category)
+    assert_includes @response.body, dom_id(@parent_budget_category)
+  end
+
+  test "#move rejects moving between a parent and its own subcategory" do
+    # A parent<->child move can't be expressed as two independent allocation
+    # edits: update_budgeted_spending!'s parent/child sync makes the second
+    # write read stale or clobber the first, conjuring or losing money.
+    assert_no_changes -> { [ @parent_budget_category.reload.budgeted_spending.to_f, @electric_budget_category.reload.budgeted_spending.to_f ] } do
+      post move_budget_budget_categories_path(@budget),
+           params: { source_id: @parent_budget_category.id, destination_id: @electric_budget_category.id, amount: 20 }
+    end
+
+    assert_redirected_to budget_budget_categories_path(@budget)
+  end
+
+  test "#move rejects covering an inheriting subcategory" do
+    gas_category = Category.create!(name: "Gas controller test", parent: @parent_category, family: @family)
+    inheriting_bc = BudgetCategory.create!(budget: @budget, category: gas_category, budgeted_spending: 0, currency: "USD")
+
+    # Covering an inheriting subcategory would convert it to an
+    # individually-budgeted one and inflate its parent's total.
+    assert_no_changes -> { inheriting_bc.reload.budgeted_spending.to_f } do
+      post move_budget_budget_categories_path(@budget),
+           params: { source_id: @water_budget_category.id, destination_id: inheriting_bc.id, amount: 20 }
+    end
+
+    assert_redirected_to budget_budget_categories_path(@budget)
+    assert_equal 50.0, @water_budget_category.reload.budgeted_spending.to_f
   end
 
   test "show drilldown still lists loan_payment transfers (intentionally budget-tracked)" do

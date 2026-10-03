@@ -256,6 +256,79 @@ class BudgetCategoryTest < ActiveSupport::TestCase
     assert @subcategory_inheriting_bc.visible_on_track?
   end
 
+  test "available_to_spend adds rollover_in for a standalone parent when rollover is enabled" do
+    @family.update!(budget_rollover_enabled: true)
+
+    standalone_category = Category.create!(
+      name: "Test Rollover Entertainment #{Time.now.to_f}",
+      family: @family,
+      color: "#a855f7"
+    )
+    standalone_bc = BudgetCategory.create!(
+      budget: @budget,
+      category: standalone_category,
+      budgeted_spending: 500,
+      currency: "USD"
+    )
+    standalone_bc.update_column(:rollover_amount, 75)
+
+    @budget.stubs(:budget_category_actual_spending).with(standalone_bc).returns(200)
+
+    # 500 (budgeted) - 200 (spent) + 75 (rollover_in) = 375
+    assert_equal 375, standalone_bc.available_to_spend
+  end
+
+  test "available_to_spend ignores rollover_amount when rollover is disabled" do
+    refute @family.budget_rollover_enabled?
+
+    standalone_category = Category.create!(
+      name: "Test No Rollover Entertainment #{Time.now.to_f}",
+      family: @family,
+      color: "#a855f7"
+    )
+    standalone_bc = BudgetCategory.create!(
+      budget: @budget,
+      category: standalone_category,
+      budgeted_spending: 500,
+      currency: "USD"
+    )
+    standalone_bc.update_column(:rollover_amount, 75)
+
+    @budget.stubs(:budget_category_actual_spending).with(standalone_bc).returns(200)
+
+    # rollover_amount is ignored entirely while the family setting is off: 500 - 200 = 300
+    assert_equal 300, standalone_bc.available_to_spend
+  end
+
+  test "available_to_spend adds rollover_in for a subcategory with its own limit" do
+    @family.update!(budget_rollover_enabled: true)
+    @subcategory_with_limit_bc.update_column(:rollover_amount, 25)
+
+    @budget.stubs(:budget_category_actual_spending).with(@subcategory_with_limit_bc).returns(100)
+
+    # 300 (budgeted) + 25 (rollover_in) - 100 (spent) = 225
+    assert_equal 225, @subcategory_with_limit_bc.available_to_spend
+  end
+
+  test "carried_over? is false when rollover is disabled even with a positive rollover_amount" do
+    @parent_budget_category.update_column(:rollover_amount, 50)
+
+    refute @parent_budget_category.carried_over?
+  end
+
+  test "carried_over? is true when rollover is enabled and rollover_amount is positive" do
+    @family.update!(budget_rollover_enabled: true)
+    @parent_budget_category.update_column(:rollover_amount, 50)
+
+    assert @parent_budget_category.carried_over?
+  end
+
+  test "carried_over? is false when rollover is enabled but rollover_amount is zero" do
+    @family.update!(budget_rollover_enabled: true)
+
+    refute @parent_budget_category.carried_over?
+  end
+
   test "suggested_daily_spending uses budget.end_date for custom month periods" do
     @family.update!(month_start_day: 15)
 
