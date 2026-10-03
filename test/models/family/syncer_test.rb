@@ -71,8 +71,9 @@ class Family::SyncerTest < ActiveSupport::TestCase
 
     syncer = Family::Syncer.new(@family)
 
-    # Stub the relation to return our specific instances so expectations work
-    @family.rules.stubs(:where).with(active: true).returns([ active_rule ])
+    # Stub the relation to return our specific instances so expectations work.
+    # Rules are applied in position order, so the syncer chains `.ordered`.
+    @family.rules.stubs(:where).with(active: true).returns(stub(ordered: [ active_rule ]))
 
     # Expect apply_later to be called only for the active rule
     active_rule.expects(:apply_later).once
@@ -86,6 +87,30 @@ class Family::SyncerTest < ActiveSupport::TestCase
 
     syncer.perform_sync(family_sync)
     syncer.perform_post_sync
+  end
+
+  test "applies active rules in position order during post sync" do
+    first_rule = @family.rules.create!(
+      resource_type: "transaction",
+      active: true,
+      actions: [ Rule::Action.new(action_type: "exclude_transaction") ]
+    )
+    second_rule = @family.rules.create!(
+      resource_type: "transaction",
+      active: true,
+      actions: [ Rule::Action.new(action_type: "exclude_transaction") ]
+    )
+
+    second_rule.move_higher!
+
+    application_order = sequence("rules applied in position order")
+    [ second_rule, first_rule ].each do |rule|
+      RuleJob.expects(:perform_later)
+             .with(rule, ignore_attribute_locks: false)
+             .in_sequence(application_order)
+    end
+
+    Family::Syncer.new(@family).perform_post_sync
   end
 
   private

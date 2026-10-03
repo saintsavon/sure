@@ -1,17 +1,23 @@
 class RulesController < ApplicationController
   include StreamExtensions
 
-  before_action :set_rule, only: [  :edit, :update, :destroy, :apply, :confirm ]
+  before_action :set_rule, only: [  :edit, :update, :destroy, :apply, :confirm, :move ]
 
   def index
-    @sort_by = params[:sort_by] || "name"
+    # "position" is the family's rule order (the order rules are applied in).
+    @sort_by = params[:sort_by]
     @direction = params[:direction] || "asc"
 
-    allowed_columns = [ "name", "updated_at" ]
-    @sort_by = "name" unless allowed_columns.include?(@sort_by)
+    allowed_columns = [ "position", "name", "updated_at" ]
+    @sort_by = "position" unless allowed_columns.include?(@sort_by)
     @direction = "asc" unless [ "asc", "desc" ].include?(@direction)
 
-    @rules = Current.family.rules.includes(conditions: :sub_conditions).order(@sort_by => @direction)
+    if @sort_by == "position"
+      @direction = "asc"
+      @rules = rules_scope.ordered
+    else
+      @rules = rules_scope.order(@sort_by => @direction)
+    end
 
     # Fetch recent rule runs with pagination
     recent_runs_scope = RuleRun
@@ -94,6 +100,24 @@ class RulesController < ApplicationController
     end
   end
 
+  # Moves a rule one step up (earlier) or down (later) in the apply order.
+  def move
+    case params[:direction]
+    when "up" then @rule.move_higher!
+    when "down" then @rule.move_lower!
+    else
+      redirect_back_or_to rules_path, alert: t(".invalid_direction")
+      return
+    end
+
+    @rules = rules_scope.ordered
+
+    respond_to do |format|
+      format.turbo_stream
+      format.html { redirect_back_or_to rules_path }
+    end
+  end
+
   def destroy
     @rule.destroy
     redirect_to rules_path, notice: t(".success")
@@ -134,6 +158,10 @@ class RulesController < ApplicationController
   end
 
   private
+    def rules_scope
+      Current.family.rules.includes(conditions: :sub_conditions)
+    end
+
     def set_rule
       @rule = Current.family.rules.find(params[:id])
     end

@@ -20,7 +20,7 @@ class Api::V1::RulesController < Api::V1::BaseController
     @per_page = safe_per_page_param
     rules_query = current_resource_owner.family.rules
       .includes(:actions, conditions: :sub_conditions)
-      .order(:created_at, :id)
+      .ordered
 
     rules_query = rules_query.where(resource_type: params[:resource_type]) if params[:resource_type].present?
     if params[:active].present?

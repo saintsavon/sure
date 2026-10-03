@@ -1,4 +1,4 @@
-<%# locals: (rule:) %>
+<%# locals: (rule:, reorderable: false, first_in_list: false, last_in_list: false) %>
 <div id="<%= dom_id(rule) %>" class="flex justify-between items-center p-4 <%= rule.active? ? "text-primary" : "text-secondary" %>">
 
   <div class="text-sm space-y-1.5">
@@ -63,6 +63,30 @@
     </div>
   </div>
   <div class="flex items-center gap-4">
+    <% if reorderable %>
+      <div class="flex items-center">
+        <% [
+          { direction: "up", icon: "chevron-up", label: t(".move_up"), at_end: first_in_list },
+          { direction: "down", icon: "chevron-down", label: t(".move_down"), at_end: last_in_list }
+        ].each do |control| %>
+          <%# Disabled at the ends of the list; otherwise a button_to that PATCHes the move route. %>
+          <% control_opts = if control[:at_end]
+               { disabled: true }
+             else
+               { href: move_rule_path(rule), method: :patch, params: { direction: control[:direction] } }
+             end %>
+          <%= render DS::Button.new(
+            variant: :icon,
+            size: :sm,
+            icon: control[:icon],
+            title: control[:label],
+            aria: { label: control[:label] },
+            class: "disabled:opacity-40",
+            **control_opts
+          ) %>
+        <% end %>
+      </div>
+    <% end %>
     <%= styled_form_with model: rule, namespace: "rule_#{rule.id}", data: { controller: "auto-submit-form" } do |f| %>
       <%= f.toggle :active, { data: { auto_submit_form_target: "auto" } } %>
     <% end %>

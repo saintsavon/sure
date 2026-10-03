@@ -348,4 +348,142 @@ class RuleTest < ActiveSupport::TestCase
     assert_nil transaction_entry2.transaction.category,
       "Transaction on other account should not be categorized"
   end
+
+  test "new rules are appended to the end of the family's rule order" do
+    first = create_ordered_rule("First")
+    second = create_ordered_rule("Second")
+    third = create_ordered_rule("Third")
+
+    assert_equal [ 0, 1, 2 ], [ first, second, third ].map(&:position)
+    assert_equal [ first, second, third ], @family.rules.ordered.to_a
+  end
+
+  test "rule positions are scoped to the family" do
+    assert families(:dylan_family).rules.exists?
+
+    rule = create_ordered_rule("Only rule in family")
+
+    assert_equal 0, rule.position
+  end
+
+  test "an explicitly assigned position is kept on create" do
+    rule = create_ordered_rule("Explicit", position: 7)
+
+    assert_equal 7, rule.reload.position
+  end
+
+  test "an explicit position of 0 is honored, not treated as the default" do
+    create_ordered_rule("First")                         # appends at 0
+    pinned = create_ordered_rule("Pinned", position: 0)  # explicit 0, must not be re-appended
+
+    assert_equal 0, pinned.reload.position
+  end
+
+  test "ordered scope sorts by position" do
+    first = create_ordered_rule("First")
+    second = create_ordered_rule("Second")
+    third = create_ordered_rule("Third")
+
+    third.update_column(:position, 0)
+    first.update_column(:position, 1)
+    second.update_column(:position, 2)
+
+    assert_equal [ third, first, second ], @family.rules.ordered.to_a
+  end
+
+  test "ordered scope breaks position ties by created_at" do
+    older = create_ordered_rule("Older")
+    newer = create_ordered_rule("Newer")
+
+    newer.update_columns(position: 0, created_at: 1.day.ago)
+    older.update_columns(position: 0, created_at: 2.days.ago)
+
+    assert_equal [ older, newer ], @family.rules.ordered.to_a
+  end
+
+  test "move_higher! swaps positions with the rule above" do
+    first = create_ordered_rule("First")
+    second = create_ordered_rule("Second")
+    third = create_ordered_rule("Third")
+
+    assert second.move_higher!
+
+    assert_equal [ second, first, third ], @family.rules.ordered.to_a
+    assert_equal [ 0, 1, 2 ], @family.rules.ordered.pluck(:position)
+    assert_equal 0, second.position
+    assert_not second.changed?
+  end
+
+  test "move_lower! swaps positions with the rule below" do
+    first = create_ordered_rule("First")
+    second = create_ordered_rule("Second")
+    third = create_ordered_rule("Third")
+
+    assert second.move_lower!
+
+    assert_equal [ first, third, second ], @family.rules.ordered.to_a
+    assert_equal [ 0, 1, 2 ], @family.rules.ordered.pluck(:position)
+    assert_equal 2, second.position
+    assert_not second.changed?
+  end
+
+  test "move_higher! is a no-op for the first rule" do
+    first = create_ordered_rule("First")
+    second = create_ordered_rule("Second")
+
+    assert_not first.move_higher!
+
+    assert_equal [ first, second ], @family.rules.ordered.to_a
+    assert_equal [ 0, 1 ], @family.rules.ordered.pluck(:position)
+    assert_equal 0, first.position
+  end
+
+  test "move_lower! is a no-op for the last rule" do
+    first = create_ordered_rule("First")
+    second = create_ordered_rule("Second")
+
+    assert_not second.move_lower!
+
+    assert_equal [ first, second ], @family.rules.ordered.to_a
+    assert_equal [ 0, 1 ], @family.rules.ordered.pluck(:position)
+    assert_equal 1, second.position
+  end
+
+  test "moving a rule normalises duplicate positions" do
+    first = create_ordered_rule("First")
+    second = create_ordered_rule("Second")
+    third = create_ordered_rule("Third")
+
+    # Legacy data: every rule shares the default position, so order falls back to created_at
+    @family.rules.update_all(position: 0)
+
+    assert third.move_higher!
+
+    assert_equal [ first, third, second ], @family.rules.ordered.to_a
+    assert_equal [ 0, 1, 2 ], @family.rules.ordered.pluck(:position)
+  end
+
+  test "moving a rule does not touch other families or updated_at" do
+    first = create_ordered_rule("First")
+    second = create_ordered_rule("Second")
+    other_rule = rules(:one)
+
+    original_other_position = other_rule.position
+    original_updated_at = [ first, second ].map { |rule| rule.reload.updated_at }
+
+    second.move_higher!
+
+    assert_equal original_other_position, other_rule.reload.position
+    assert_equal original_updated_at, [ first, second ].map { |rule| rule.reload.updated_at }
+  end
+
+  private
+    def create_ordered_rule(name, **attributes)
+      @family.rules.create!(
+        name: name,
+        resource_type: "transaction",
+        actions: [ Rule::Action.new(action_type: "exclude_transaction") ],
+        **attributes
+      )
+    end
 end

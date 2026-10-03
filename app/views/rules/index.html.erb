@@ -59,25 +59,28 @@
           <span class="text-secondary"><%= t(".sort_by") %></span>
           <%= form_with url: rules_path, method: :get, local: true, class: "flex items-center", data: { controller: "auto-submit-form" } do |form| %>
             <%= form.select :sort_by,
-                      options_for_select([[t(".sort_name"), "name"], [t(".sort_updated_at"), "updated_at"]], @sort_by),
+                      options_for_select([[t(".sort_position"), "position"], [t(".sort_name"), "name"], [t(".sort_updated_at"), "updated_at"]], @sort_by),
                       {},
                       class: "min-w-[120px] bg-transparent rounded border-none cursor-pointer text-primary uppercase text-xs w-auto",
                       data: { auto_submit_form_target: "auto", autosubmit_trigger_event: "change" } %>
             <%= form.hidden_field :direction, value: @direction %>
           <% end %>
-          <%= render DS::Link.new(
-            href: rules_path(direction: @direction == "asc" ? "desc" : "asc", sort_by: @sort_by),
-            variant: "icon",
-            icon: "arrow-up-down",
-            size: :sm,
-            title: t(".toggle_sort_direction")
-          ) %>
+          <% unless @sort_by == "position" %>
+            <%= render DS::Link.new(
+              href: rules_path(direction: @direction == "asc" ? "desc" : "asc", sort_by: @sort_by),
+              variant: "icon",
+              icon: "arrow-up-down",
+              size: :sm,
+              title: t(".toggle_sort_direction")
+            ) %>
+          <% end %>
         </div>
       </div>
+      <% if @sort_by == "position" %>
+        <p class="px-4 pb-2 text-xs text-secondary"><%= t(".order_hint") %></p>
+      <% end %>
       <div class="p-1">
-        <div class="flex flex-col bg-container rounded-lg shadow-border-xs">
-          <%= render partial: "rule", collection: @rules, spacer_template: "shared/ruler" %>
-        </div>
+        <%= render "rules/list", rules: @rules, reorderable: @sort_by == "position" %>
       </div>
     </div>
   <% else %>

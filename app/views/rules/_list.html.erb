@@ -1,0 +1,13 @@
+<%# locals: (rules:, reorderable: false) %>
+<% rule_list = rules.to_a %>
+<% last_index = rule_list.size - 1 %>
+<div id="rules_list" class="flex flex-col bg-container rounded-lg shadow-border-xs">
+  <% rule_list.each_with_index do |rule, index| %>
+    <%= render "rules/rule",
+          rule: rule,
+          reorderable: reorderable,
+          first_in_list: index.zero?,
+          last_in_list: index == last_index %>
+    <%= render "shared/ruler" unless index == last_index %>
+  <% end %>
+</div>

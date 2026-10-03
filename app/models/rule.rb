@@ -10,6 +10,11 @@ class Rule < ApplicationRecord
   accepts_nested_attributes_for :actions, allow_destroy: true
 
   before_validation :normalize_name
+  before_create :set_default_position
+
+  # Rules are applied in this order. Callers opt in explicitly (no default_scope).
+  # `created_at`/`id` only break ties between equal (e.g. legacy) positions.
+  scope :ordered, -> { order(:position, :created_at, :id) }
 
   validates :resource_type, presence: true
   validates :name, length: { minimum: 1 }, allow_nil: true
@@ -106,6 +111,18 @@ class Rule < ApplicationRecord
     RuleJob.perform_later(self, ignore_attribute_locks: ignore_attribute_locks)
   end
 
+  # Moves this rule one step earlier in its family's apply order by swapping it
+  # with the rule directly above it. No-op (returns false) if already first.
+  def move_higher!
+    move_by!(-1)
+  end
+
+  # Moves this rule one step later in its family's apply order by swapping it
+  # with the rule directly below it. No-op (returns false) if already last.
+  def move_lower!
+    move_by!(1)
+  end
+
   def primary_condition_title
     condition = displayed_condition
     return I18n.t("rules.no_condition") if condition.blank?
@@ -128,6 +145,45 @@ class Rule < ApplicationRecord
   end
 
   private
+    # Swaps this rule with its neighbour `offset` places away in the family's
+    # ordered rules. Positions are re-written as a contiguous 0..n-1 sequence
+    # so legacy duplicates or gaps are normalised instead of breaking the swap.
+    # Returns true if the rule moved, false if it was already at that end.
+    def move_by!(offset)
+      moved = false
+
+      transaction do
+        siblings = family.rules.ordered.lock.to_a
+        index = siblings.index(self)
+        target = index && index + offset
+
+        if target && target >= 0 && target < siblings.size
+          siblings[index], siblings[target] = siblings[target], siblings[index]
+
+          siblings.each_with_index do |rule, new_position|
+            rule.update_column(:position, new_position) unless rule.position == new_position
+          end
+
+          # Keep this in-memory instance in sync without marking it dirty.
+          self.position = siblings.index { |rule| rule.id == id }
+          clear_attribute_changes([ :position ])
+          moved = true
+        end
+      end
+
+      moved
+    end
+
+    # New rules go to the end of the family's list, unless a position was
+    # assigned explicitly. Use `came_from_user?` rather than `changed?` so an
+    # explicit `position: 0` is honored -- 0 equals the column default, which
+    # would make `position_changed?` false and wrongly trigger the append.
+    def set_default_position
+      return if position_came_from_user?
+
+      self.position = (family.rules.maximum(:position) || -1) + 1
+    end
+
     def matching_resources_scope
       scope = registry.resource_scope
 
