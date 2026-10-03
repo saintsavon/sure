@@ -85,7 +85,7 @@ class Budget::RolloverCalculator
     # `updated_at` on every budget open.
     def persist_rollover!(target_budget, carry_in_by_category)
       target_budget.budget_categories.each do |bc|
-        new_amount = carry_in_by_category.fetch(bc.category_id, 0)
+        new_amount = carry_in_by_category.fetch(bc.category_id, 0) + bc.rollover_adjustment
         bc.update_column(:rollover_amount, new_amount) unless bc.rollover_amount == new_amount
       end
     end

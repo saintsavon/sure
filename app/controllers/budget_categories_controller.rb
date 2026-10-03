@@ -1,4 +1,6 @@
 class BudgetCategoriesController < ApplicationController
+  InvalidMove = Class.new(StandardError)
+
   before_action :set_budget
 
   def index
@@ -42,9 +44,8 @@ class BudgetCategoriesController < ApplicationController
   end
 
   # "Move money" between two categories in the same budget, e.g. to cover an
-  # over-budget category from one with room to spare. Reuses
-  # `update_budgeted_spending!` on each side so parent/subcategory allocation
-  # stays in sync exactly as it does for a normal edit.
+  # over-budget category from one with room to spare. Transfer the current
+  # month's allocation first, then any carried funds that remain.
   def move
     unless Current.family.budget_rollover_enabled?
       redirect_to budget_budget_categories_path(@budget), alert: t(".invalid")
@@ -55,21 +56,39 @@ class BudgetCategoriesController < ApplicationController
     @destination = movable_budget_categories.find_by(id: move_params[:destination_id])
     amount = move_params[:amount].presence&.to_d || 0
 
-    if invalid_move?(amount)
-      redirect_to budget_budget_categories_path(@budget), alert: t(".invalid")
-      return
-    end
-
     BudgetCategory.transaction do
-      @source.update_budgeted_spending!(@source.budgeted_spending - amount)
-      @destination.update_budgeted_spending!(@destination.budgeted_spending + amount)
+      if @source && @destination
+        BudgetCategory.where(id: [ @source.id, @destination.id ]).order(:id).lock.load
+        @source.reload
+        @destination.reload
+      end
+      raise InvalidMove if invalid_move?(amount)
+
+      budgeted_part = [ amount, [ (@source.budgeted_spending || 0), 0 ].max ].min
+      rollover_part = amount - budgeted_part
+
+      if budgeted_part.positive?
+        @source.update_budgeted_spending!(@source.budgeted_spending - budgeted_part)
+        @destination.update_budgeted_spending!((@destination.budgeted_spending || 0) + budgeted_part)
+      end
+
+      if rollover_part.positive?
+        @source.update!(
+          rollover_adjustment: @source.rollover_adjustment - rollover_part,
+          rollover_amount: @source.rollover_amount - rollover_part
+        )
+        @destination.update!(
+          rollover_adjustment: @destination.rollover_adjustment + rollover_part,
+          rollover_amount: @destination.rollover_amount + rollover_part
+        )
+      end
     end
 
     respond_to do |format|
       format.turbo_stream
       format.html { redirect_to budget_budget_categories_path(@budget), notice: t(".success") }
     end
-  rescue ActiveRecord::RecordInvalid
+  rescue ActiveRecord::RecordInvalid, InvalidMove
     # update_budgeted_spending! can raise if a concurrent edit leaves a parent
     # below its subcategory total; surface the friendly alert instead of a 500,
     # mirroring #update.
@@ -88,7 +107,8 @@ class BudgetCategoriesController < ApplicationController
     def invalid_move?(amount)
       return true if @source.blank? || @destination.blank?
       return true if @source.id == @destination.id
-      return true if amount <= 0 || amount > (@source.budgeted_spending || 0)
+      return true if amount <= 0
+      return true if @source.inherits_parent_budget?
       return true if amount > @source.available_to_spend
 
       # Covering an inheriting subcategory would silently convert it into an

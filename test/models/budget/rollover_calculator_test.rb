@@ -115,6 +115,9 @@ class Budget::RolloverCalculatorTest < ActiveSupport::TestCase
     assert_equal 150, newer_parent.reload.rollover_amount
     assert_equal 40, newer_child.reload.rollover_amount
     assert_equal 190, newer_parent.rollover_amount + newer_child.rollover_amount
+    refute newer_child.inherits_parent_budget?
+    assert_equal 40, newer_child.available_to_spend
+    assert_equal 150, newer_parent.available_to_spend
   end
 
   test "a category added after the prior month carries in nothing" do

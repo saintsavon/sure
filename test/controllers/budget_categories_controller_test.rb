@@ -159,7 +159,7 @@ class BudgetCategoriesControllerTest < ActionDispatch::IntegrationTest
     assert_equal 100.0, @electric_budget_category.reload.budgeted_spending.to_f
   end
 
-  test "#move rejects an amount larger than the source's budgeted_spending" do
+  test "#move rejects an amount larger than the source's available balance" do
     assert_no_changes -> { @water_budget_category.reload.budgeted_spending.to_f } do
       post move_budget_budget_categories_path(@budget),
            params: { source_id: @water_budget_category.id, destination_id: @electric_budget_category.id, amount: 999 }
@@ -167,6 +167,32 @@ class BudgetCategoriesControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to budget_budget_categories_path(@budget)
     assert_equal 100.0, @electric_budget_category.reload.budgeted_spending.to_f
+  end
+
+  test "#move can transfer carried funds with no new monthly allocation" do
+    prior = Budget.create!(
+      family: @family,
+      start_date: 1.month.ago.beginning_of_month,
+      end_date: 1.month.ago.end_of_month,
+      budgeted_spending: 500,
+      currency: "USD"
+    )
+    BudgetCategory.create!(budget: prior, category: @water_category, budgeted_spending: 40, currency: "USD")
+    @water_budget_category.update!(budgeted_spending: 0)
+    Budget::RolloverCalculator.new(@budget).calculate!
+    assert_equal 40, @water_budget_category.reload.rollover_amount
+
+    post move_budget_budget_categories_path(@budget),
+         params: { source_id: @water_budget_category.id, destination_id: @electric_budget_category.id, amount: 20 }
+
+    assert_redirected_to budget_budget_categories_path(@budget)
+    assert_equal 0, @water_budget_category.reload.budgeted_spending
+    assert_equal 20, @water_budget_category.rollover_amount
+    assert_equal 20, @electric_budget_category.reload.rollover_amount
+
+    Budget::RolloverCalculator.new(@budget).calculate!
+    assert_equal 20, @water_budget_category.reload.rollover_amount
+    assert_equal 20, @electric_budget_category.reload.rollover_amount
   end
 
   test "#move is unavailable until the family enables rollover" do
