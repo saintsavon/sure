@@ -368,6 +368,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_16_130000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.decimal "rollover_amount", precision: 19, scale: 4, default: "0.0", null: false
+    t.decimal "rollover_adjustment", precision: 19, scale: 4, default: "0.0", null: false
     t.index ["budget_id", "category_id"], name: "index_budget_categories_on_budget_id_and_category_id", unique: true
     t.index ["budget_id"], name: "index_budget_categories_on_budget_id"
     t.index ["category_id"], name: "index_budget_categories_on_category_id"

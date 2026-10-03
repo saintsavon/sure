@@ -73,7 +73,7 @@ en:
       source_label: "Move money from"
       source_option: "%{category} (%{amount} available)"
       amount_label: "Amount"
-      no_sources: "No other categories have budgeted money available to move."
+      no_sources: "No other categories have money available to move."
       submit: "Move money"
     budget_category:
       carried_over: "+%{amount} carried over"

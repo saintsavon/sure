@@ -78,7 +78,8 @@ class BudgetCategory < ApplicationRecord
 
   # Returns true if this subcategory has no individual budget limit and should use parent's budget
   def inherits_parent_budget?
-    subcategory? && (self[:budgeted_spending].nil? || self[:budgeted_spending] == 0)
+    subcategory? && (self[:budgeted_spending].nil? || self[:budgeted_spending] == 0) &&
+      (!budget.family.budget_rollover_enabled? || rollover_amount.to_d.zero?)
   end
 
   # Returns the budgeted spending to display in UI
