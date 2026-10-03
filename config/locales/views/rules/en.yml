@@ -7,6 +7,8 @@ en:
       edit: Edit
       re_apply_rule: Re-apply rule
       delete: Delete
+      move_up: Move up
+      move_down: Move down
       then: THEN
       and_more_conditions:
         one: and 1 more condition
@@ -33,9 +35,11 @@ en:
       ai_cost_warning: AI-enabled rule actions will cost money.  Be sure to filter as narrowly as possible to avoid unnecessary costs.
       rules_heading: Rules
       sort_by: "Sort by:"
+      sort_position: Rule order
       sort_name: Name
       sort_updated_at: Updated At
       toggle_sort_direction: Toggle sort direction
+      order_hint: Rules are applied from top to bottom. Use the arrows to change the order.
       no_rules_title: No rules yet
       no_rules_description: Set up rules to perform actions to your transactions and other data on every account sync.
     confirm:
@@ -52,6 +56,8 @@ en:
       confirm_changes: Confirm changes
     actions:
       value_placeholder: Enter a value
+    move:
+      invalid_direction: Rules can only be moved up or down.
     update:
       success: Rule updated
     destroy:

@@ -1,6 +1,8 @@
 require "test_helper"
 
 class RulesControllerTest < ActionDispatch::IntegrationTest
+  include ActionView::RecordIdentifier
+
   setup do
     sign_in @user = users(:family_admin)
   end
@@ -242,4 +244,153 @@ class RulesControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to rules_url
   end
+
+  test "index lists rules in position order and shows move controls" do
+    first, second = create_ordered_rules(2)
+    second.move_higher!
+
+    get rules_url
+
+    assert_response :success
+
+    body = response.body
+    assert_operator body.index(dom_id(second)), :<, body.index(dom_id(first))
+
+    move_up = I18n.t("rules.rule.move_up")
+    move_down = I18n.t("rules.rule.move_down")
+
+    # Top row can only move down, middle row both ways, bottom row only up
+    top = "##{dom_id(rules(:one))}"
+    assert_select "#{top} form[action='#{move_rule_path(rules(:one))}'] input[name='direction'][value='down']", count: 1
+    assert_select "#{top} form[action='#{move_rule_path(rules(:one))}'] input[name='direction'][value='up']", count: 0
+    assert_select "#{top} button[disabled][aria-label='#{move_up}']", count: 1
+
+    middle = "##{dom_id(second)}"
+    assert_select "#{middle} form[action='#{move_rule_path(second)}']", count: 2
+    assert_select "#{middle} button[disabled][aria-label='#{move_up}']", count: 0
+    assert_select "#{middle} button[disabled][aria-label='#{move_down}']", count: 0
+
+    bottom = "##{dom_id(first)}"
+    assert_select "#{bottom} form[action='#{move_rule_path(first)}'] input[name='direction'][value='up']", count: 1
+    assert_select "#{bottom} form[action='#{move_rule_path(first)}'] input[name='direction'][value='down']", count: 0
+    assert_select "#{bottom} button[disabled][aria-label='#{move_down}']", count: 1
+  end
+
+  test "index hides move controls when sorted by another column" do
+    create_ordered_rules(2)
+
+    get rules_url(sort_by: "name")
+
+    assert_response :success
+    assert_select "form[action$='/move']", count: 0
+  end
+
+  test "move up swaps a rule with the one above it" do
+    first, second, third = create_ordered_rules(3)
+
+    patch move_rule_url(second), params: { direction: "up" }
+
+    assert_redirected_to rules_url
+    assert_equal [ rules(:one), second, first, third ], @user.family.rules.ordered.to_a
+    assert_equal [ 0, 1, 2, 3 ], @user.family.rules.ordered.pluck(:position)
+  end
+
+  test "move down swaps a rule with the one below it" do
+    first, second, third = create_ordered_rules(3)
+
+    patch move_rule_url(second), params: { direction: "down" }
+
+    assert_redirected_to rules_url
+    assert_equal [ rules(:one), first, third, second ], @user.family.rules.ordered.to_a
+    assert_equal [ 0, 1, 2, 3 ], @user.family.rules.ordered.pluck(:position)
+  end
+
+  test "move is a no-op at the ends of the list" do
+    _first, second = create_ordered_rules(2)
+
+    assert_no_changes -> { @user.family.rules.ordered.pluck(:id, :position) } do
+      patch move_rule_url(rules(:one)), params: { direction: "up" }
+      patch move_rule_url(second), params: { direction: "down" }
+    end
+
+    assert_redirected_to rules_url
+  end
+
+  test "move rejects an unknown direction" do
+    _first, second = create_ordered_rules(2)
+
+    assert_no_changes -> { @user.family.rules.ordered.pluck(:id, :position) } do
+      patch move_rule_url(second), params: { direction: "sideways" }
+    end
+
+    assert_redirected_to rules_url
+    assert_equal I18n.t("rules.move.invalid_direction"), flash[:alert]
+  end
+
+  test "move rejects a missing direction" do
+    _first, second = create_ordered_rules(2)
+
+    assert_no_changes -> { @user.family.rules.ordered.pluck(:id, :position) } do
+      patch move_rule_url(second)
+    end
+
+    assert_redirected_to rules_url
+    assert_equal I18n.t("rules.move.invalid_direction"), flash[:alert]
+  end
+
+  test "move responds with a turbo_stream re-rendering the rules list" do
+    first, second = create_ordered_rules(2)
+
+    patch move_rule_url(second), params: { direction: "up" }, as: :turbo_stream
+
+    assert_response :success
+    assert_includes response.body, 'target="rules_list"'
+
+    body = response.body
+    assert_operator body.index(dom_id(second)), :<, body.index(dom_id(first))
+    assert_equal [ rules(:one), second, first ], @user.family.rules.ordered.to_a
+  end
+
+  test "move cannot reorder another family's rule" do
+    other_family = families(:empty)
+    other_rules = 2.times.map do |i|
+      other_family.rules.create!(
+        name: "Other #{i}",
+        resource_type: "transaction",
+        actions: [ Rule::Action.new(action_type: "exclude_transaction") ]
+      )
+    end
+
+    assert_no_changes -> { other_family.rules.ordered.pluck(:id, :position) } do
+      patch move_rule_url(other_rules.last), params: { direction: "up" }
+    end
+
+    assert_response :not_found
+  end
+
+  test "new rules are appended after existing rules" do
+    existing_rule = rules(:one)
+
+    post rules_url, params: {
+      rule: {
+        resource_type: "transaction",
+        actions_attributes: { "0" => { action_type: "exclude_transaction" } }
+      }
+    }
+
+    created_rule = @user.family.rules.ordered.last
+    assert_not_equal existing_rule, created_rule
+    assert_equal existing_rule.reload.position + 1, created_rule.position
+  end
+
+  private
+    def create_ordered_rules(count)
+      count.times.map do |i|
+        @user.family.rules.create!(
+          name: "Ordered rule #{i}",
+          resource_type: "transaction",
+          actions: [ Rule::Action.new(action_type: "exclude_transaction") ]
+        )
+      end
+    end
 end
