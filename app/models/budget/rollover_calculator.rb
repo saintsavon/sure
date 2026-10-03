@@ -30,6 +30,10 @@ class Budget::RolloverCalculator
     end
 
     nil
+  ensure
+    # Recomputing loads the association. Do not leave callers holding a stale
+    # snapshot if they edit a category and later copy this budget to a new month.
+    budget.budget_categories.reset
   end
 
   private
