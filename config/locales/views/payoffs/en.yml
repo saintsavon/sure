@@ -1,0 +1,142 @@
+en:
+  payoffs:
+    notifications:
+      test_message: Your payoff updates are connected.
+      your_plan: Your payoff plan
+      milestone: "%{percent}% of starting debt repaid"
+      debt_defeated: "%{name} paid off"
+      promo_beaten: "%{name} cleared before its promo ended"
+      promo_risk: "%{name} has a promo ending soon with a balance remaining"
+      minimum_due: "%{name} has a minimum payment due soon"
+      streak:
+        minimums: "%{count} months with every minimum paid on time"
+        frozen: "%{count} months without a higher frozen-card balance"
+        extra: "%{count} months paying extra"
+      high_interest_cleared: All high-interest debt paid off
+      emergency_fund: "Emergency fund %{percent}% funded"
+      zero_card_interest: A month with no card interest
+    notices:
+      created: Payoff plan created.
+      saved: Payoff plan saved.
+      invalid: Check the payoff settings and try again.
+      baseline: Your comparison plan was updated.
+      discord_test: A test message is on its way.
+      discord_missing: Save and enable a Discord webhook first.
+    show:
+      title: Payoff
+      subtitle: A clear path through your household debt.
+      empty_title: Make a plan for what you owe
+      empty_body: See a projected payoff date, track what you have paid down, and know which balance to focus on next. Your current liability accounts will be added automatically.
+      set_up: Set up payoff plan
+      projected_debt_free: Projected debt-free date
+      date_pending: Beyond the 10-year outlook
+      debt_free_now: Debt-free now
+      negative_surplus: "The monthly budget is %{amount} short of covering minimums. The estimate assumes each minimum is still paid and floors extra payments at zero."
+      foreign_currency_notice:
+        one: One liability in another currency is outside this plan.
+        other: "%{count} liabilities in other currencies are outside this plan."
+      months_remaining:
+        one: About 1 month remaining
+        other: About %{count} months remaining
+      interest_avoided: "%{amount} less estimated interest over 10 years than minimums alone"
+      owed_now: Owed now
+      from_start: "From %{amount} at plan start"
+      progress_label: Debt repaid
+      progress: "%{percent}% repaid"
+      interest_this_month: "Interest this month: %{amount}"
+      interest_comparison: "Interest: %{current} this month · %{previous} last month"
+      ahead: "Ahead of the original plan by %{amount} · about %{months} months"
+      behind: "Behind the original plan by %{amount} · about %{months} months"
+      on_track: On track with the original plan
+      next_move: Your next move
+      target_detail: "%{balance} remaining · %{apr} APR"
+      no_target: Add a surplus or lump sum to choose a target.
+      safe_to_send: "Estimated safe to send before %{date}"
+      cash_breakdown: "Cash %{cash} − upcoming obligations %{committed} − reserve %{float}"
+      send_to: "Send up to %{amount} to %{name}"
+      verify_balance: Check the current balance in the lender's app before paying. This estimate does not move money.
+      configure_payday: Set a payday and cash accounts in settings to see a safe payment estimate.
+      timeline: Projected balances
+      timeline_description: The colored areas show estimated debt remaining. The line shows daily plan snapshots once tracking begins.
+      payoff_order: Payoff order
+      no_debts: No debts are enrolled yet. Add a liability account in settings.
+      entry_detail: "%{apr} APR · %{minimum} minimum · projected %{payoff}"
+      entry_progress: "%{percent}% repaid · about %{interest} interest per month"
+      stale: Balance may be stale
+      add_valuation: Add a valuation
+      promo_until: "Promo until %{date}"
+      paid_off: "Paid off (%{count})"
+      promo_radar: Promo radar
+      promo_detail: "%{balance} at promo rate · %{days} days left · about %{monthly}/month to clear"
+      promo_on_track: On track
+      promo_at_risk: Needs attention
+      promo_cost: "If missed, about %{amount} in reset or deferred interest"
+      promo_balance_note: Keep promo balances current from your statements; they do not update automatically when payments post.
+      this_month: This month
+      monthly_row: "%{paid} paid / %{minimum} minimum · %{extra} extra · %{interest} interest"
+      milestones: Milestones
+      milestones_empty: Progress will appear here as balances fall.
+      roles:
+        snowball: Pay down
+        minimum_only: Minimum only
+        scheduled: Scheduled
+        excluded: Excluded
+      events:
+        milestone: "%{percent}% of starting debt repaid"
+        debt_defeated: "%{name} paid off"
+        promo_beaten: "%{name} cleared before its promo ended"
+        streak:
+          minimums: "%{count} months with every minimum paid on time"
+          frozen: "%{count} months without a higher frozen-card balance"
+          extra: "%{count} months paying extra"
+        high_interest_cleared: All high-interest debt paid off
+        emergency_fund: "Emergency fund %{percent}% funded"
+        zero_card_interest: A month with no card interest
+        promo_risk: Promo balance needs attention
+        minimum_due: Minimum due soon
+    settings:
+      open: Settings
+      title: Payoff settings
+      subtitle: Adjust your plan. Changes update the projection immediately.
+      strategy: Strategy
+      snowball: Tiered snowball
+      avalanche: Highest interest first
+      estimated_interest: "%{amount} estimated interest"
+      high_interest_line: High-interest threshold (decimal)
+      monthly_surplus: Monthly cash beyond minimums
+      emergency_goal: Emergency fund goal
+      none: None
+      payday_anchor: Payday anchor
+      payday_cadence: Payday cadence
+      weekly: Weekly
+      biweekly: Every two weeks
+      semimonthly: Twice a month
+      monthly: Monthly
+      cash_float: Cash reserve
+      surplus_steps: Future surplus changes
+      surplus_steps_hint: One per line, as YYYY-MM,amount,label. Amount is the change from that month onward.
+      cash_accounts: Cash accounts for the next-move estimate
+      email_notifications: Email updates
+      discord_notifications: Discord updates
+      discord_webhook: Discord webhook URL
+      test_discord: Send test message
+      save: Save settings
+      debts: Debt settings
+      role: Payoff role
+      priority: Priority (optional)
+      minimum: Minimum override
+      due_day: Due day of month
+      scheduled_amount: Amount at lump-sum dates
+      frozen_card: No new charges planned
+      save_debt: Save debt
+      add_debt: Add account
+      lump_sums: One-time cash
+      expected_on: Expected date
+      amount: Amount
+      label: Label
+      scheduled_payments: Pay scheduled debts then
+      add_lump: Add one-time cash
+      save_lump: Save one-time cash
+      received_on: Received on
+      remove: Remove
+      rebaseline: Compare against today's plan from now on

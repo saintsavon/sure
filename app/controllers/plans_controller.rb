@@ -19,6 +19,8 @@ class PlansController < ApplicationController
                                      .where(accountable_type: Goal::FUNDABLE_ACCOUNT_TYPES)
                                      .visible
                                      .count
+    @debt_plan = Current.family.debt_plan
+    @payoff_projection = @debt_plan&.project(user: Current.user)
 
     @breadcrumbs = [ [ t("breadcrumbs.home"), root_path ], [ t("breadcrumbs.plan"), nil ] ]
   end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_16_130000) do
+ActiveRecord::Schema[7.2].define(version: 2026_10_14_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -561,6 +561,96 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_16_130000) do
     t.index ["source"], name: "index_debug_log_entries_on_source"
     t.index ["user_id"], name: "index_debug_log_entries_on_user_id"
     t.check_constraint "level::text = ANY (ARRAY['debug'::character varying, 'info'::character varying, 'warn'::character varying, 'error'::character varying]::text[])", name: "chk_debug_log_entries_level"
+  end
+
+  create_table "debt_plan_entries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "account_id", null: false
+    t.datetime "created_at", null: false
+    t.uuid "debt_plan_id", null: false
+    t.boolean "frozen_card", default: false, null: false
+    t.decimal "minimum_payment_override", precision: 19, scale: 4
+    t.text "notes"
+    t.integer "payment_due_day"
+    t.integer "priority"
+    t.string "role", default: "snowball", null: false
+    t.decimal "scheduled_amount", precision: 19, scale: 4
+    t.decimal "starting_balance", precision: 19, scale: 4, default: "0.0", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_debt_plan_entries_on_account_id"
+    t.index ["debt_plan_id", "account_id"], name: "index_debt_plan_entries_on_debt_plan_id_and_account_id", unique: true
+    t.index ["debt_plan_id"], name: "index_debt_plan_entries_on_debt_plan_id"
+    t.check_constraint "payment_due_day >= 1 AND payment_due_day <= 31", name: "chk_debt_plan_entries_due_day"
+    t.check_constraint "role::text = ANY (ARRAY['snowball'::character varying, 'minimum_only'::character varying, 'scheduled'::character varying, 'excluded'::character varying]::text[])", name: "chk_debt_plan_entries_role"
+  end
+
+  create_table "debt_plan_events", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "account_id"
+    t.datetime "celebrated_at"
+    t.datetime "created_at", null: false
+    t.uuid "debt_plan_id", null: false
+    t.datetime "discord_notified_at"
+    t.datetime "email_notified_at"
+    t.string "key", null: false
+    t.string "kind", null: false
+    t.datetime "notified_at"
+    t.date "occurred_on", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_debt_plan_events_on_account_id"
+    t.index ["debt_plan_id", "key"], name: "index_debt_plan_events_on_debt_plan_id_and_key", unique: true
+    t.index ["debt_plan_id"], name: "index_debt_plan_events_on_debt_plan_id"
+  end
+
+  create_table "debt_plan_lump_sums", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.decimal "amount", precision: 19, scale: 4, null: false
+    t.datetime "created_at", null: false
+    t.uuid "debt_plan_id", null: false
+    t.date "expected_on", null: false
+    t.string "label", null: false
+    t.date "received_on"
+    t.boolean "scheduled_payments", default: true, null: false
+    t.datetime "updated_at", null: false
+    t.index ["debt_plan_id"], name: "index_debt_plan_lump_sums_on_debt_plan_id"
+  end
+
+  create_table "debt_plan_snapshots", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.uuid "debt_plan_id", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.date "projected_debt_free_on"
+    t.decimal "projected_total_interest", precision: 19, scale: 4, default: "0.0", null: false
+    t.date "taken_on", null: false
+    t.decimal "total_debt", precision: 19, scale: 4, null: false
+    t.datetime "updated_at", null: false
+    t.index ["debt_plan_id", "taken_on"], name: "index_debt_plan_snapshots_on_debt_plan_id_and_taken_on", unique: true
+    t.index ["debt_plan_id"], name: "index_debt_plan_snapshots_on_debt_plan_id"
+  end
+
+  create_table "debt_plans", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.jsonb "baseline_schedule", default: [], null: false
+    t.date "baseline_taken_on"
+    t.uuid "cash_account_ids", default: [], null: false, array: true
+    t.decimal "cash_float", precision: 19, scale: 4, default: "0.0", null: false
+    t.datetime "created_at", null: false
+    t.date "discord_digest_sent_on"
+    t.boolean "discord_notifications_enabled", default: false, null: false
+    t.text "discord_webhook_url"
+    t.date "email_digest_sent_on"
+    t.boolean "email_notifications_enabled", default: false, null: false
+    t.uuid "emergency_fund_goal_id"
+    t.uuid "family_id", null: false
+    t.decimal "high_interest_line", precision: 6, scale: 4, default: "0.15", null: false
+    t.decimal "monthly_surplus", precision: 19, scale: 4, default: "0.0", null: false
+    t.date "payday_anchor_on"
+    t.string "payday_cadence", default: "biweekly", null: false
+    t.string "state", default: "active", null: false
+    t.string "strategy", default: "snowball", null: false
+    t.jsonb "surplus_steps", default: [], null: false
+    t.datetime "updated_at", null: false
+    t.index ["emergency_fund_goal_id"], name: "index_debt_plans_on_emergency_fund_goal_id"
+    t.index ["family_id"], name: "index_debt_plans_on_family_id", unique: true, where: "((state)::text = 'active'::text)"
+    t.check_constraint "state::text = ANY (ARRAY['active'::character varying, 'archived'::character varying]::text[])", name: "chk_debt_plans_state"
+    t.check_constraint "strategy::text = ANY (ARRAY['snowball'::character varying, 'avalanche'::character varying]::text[])", name: "chk_debt_plans_strategy"
   end
 
   create_table "depositories", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

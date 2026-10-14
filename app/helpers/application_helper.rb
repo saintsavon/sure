@@ -100,7 +100,7 @@ module ApplicationHelper
         path: plan_path,
         icon: "compass",
         icon_custom: false,
-        active: page_active?(plan_path) || page_active?(budgets_path) || page_active?(goals_path),
+        active: page_active?(plan_path) || page_active?(budgets_path) || page_active?(goals_path) || page_active?(payoff_path),
         preview: true
       }
     else
@@ -112,6 +112,18 @@ module ApplicationHelper
         active: page_active?(budgets_path)
       }
     end
+  end
+
+  def payoff_nav_item
+    return if preview_features_enabled?
+
+    {
+      name: t("payoffs.show.title"),
+      path: payoff_path,
+      icon: "trending-down",
+      icon_custom: false,
+      active: page_active?(payoff_path)
+    }
   end
 
   # Wrapper around I18n.l to support custom date formats

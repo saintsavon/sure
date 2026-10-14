@@ -1,0 +1,5 @@
+<h1><%= t(".heading") %></h1>
+<% @events.each do |event| %>
+  <p><%= event.description %></p>
+<% end %>
+<p><%= link_to t(".cta"), @payoff_url %></p>

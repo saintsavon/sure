@@ -1,0 +1,164 @@
+<div class="@container space-y-6 pb-6 lg:pb-12">
+  <header class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-semibold text-primary"><%= t(".title") %></h1>
+      <p class="text-sm text-secondary mt-1"><%= t(".subtitle") %></p>
+    </div>
+    <% if @plan && Current.user.admin? %>
+      <%= render "payoffs/settings" %>
+    <% end %>
+  </header>
+  <% if @foreign_liability_count.positive? %>
+    <%= render DS::Alert.new(message: t(".foreign_currency_notice", count: @foreign_liability_count), variant: :info) %>
+  <% end %>
+
+  <% unless @plan %>
+    <%= render DS::Card.new do %>
+      <div class="text-center py-10 space-y-4">
+        <span class="inline-flex rounded-full p-3 bg-surface-inset text-secondary"><%= icon("trending-down", size: "lg") %></span>
+        <h2 class="text-lg font-medium text-primary"><%= t(".empty_title") %></h2>
+        <p class="text-sm text-secondary max-w-lg mx-auto"><%= t(".empty_body") %></p>
+        <% if Current.user.admin? %>
+          <%= render DS::Button.new(text: t(".set_up"), variant: :primary, href: payoff_path) %>
+        <% end %>
+      </div>
+    <% end %>
+  <% else %>
+    <% if @plan.monthly_surplus.to_d.negative? %>
+      <%= render DS::Alert.new(message: t(".negative_surplus", amount: payoff_money(-@plan.monthly_surplus)), variant: :warning) %>
+    <% end %>
+    <% starting = @tracked_entries.sum { |entry| entry.starting_balance.to_d } %>
+    <% owed = @plan.total_owed(user: Current.user) %>
+    <% progress = starting.positive? ? ((starting - owed) / starting * 100).clamp(0, 100).round : 0 %>
+
+    <%= render DS::Card.new do %>
+      <div class="flex flex-wrap justify-between gap-6">
+        <div>
+          <p class="text-xs uppercase tracking-wide text-secondary"><%= t(".projected_debt_free") %></p>
+          <p class="text-3xl font-semibold text-primary mt-2"><%= @projection.debt_free_month ? payoff_month_date(@projection.debt_free_month) : t(".date_pending") %></p>
+          <% if @projection.debt_free_month %><p class="text-sm text-secondary mt-1"><%= @projection.debt_free_month.zero? ? t(".debt_free_now") : t(".months_remaining", count: @projection.debt_free_month) %></p><% end %>
+          <p class="text-sm text-secondary mt-1"><%= t(".interest_avoided", amount: payoff_money(@interest_avoided)) %></p>
+        </div>
+        <div class="text-right">
+          <p class="text-xs uppercase tracking-wide text-secondary"><%= t(".owed_now") %></p>
+          <p class="text-2xl font-medium text-primary privacy-sensitive mt-2"><%= payoff_money(owed) %></p>
+          <p class="text-xs text-subdued"><%= t(".from_start", amount: payoff_money(starting)) %></p>
+        </div>
+      </div>
+      <div class="h-2 bg-container-inset rounded-full overflow-hidden mt-5" role="progressbar" aria-valuenow="<%= progress %>" aria-valuemin="0" aria-valuemax="100" aria-label="<%= t(".progress_label") %>">
+        <div class="h-full bg-success rounded-full" style="inline-size: <%= progress %>%"></div>
+      </div>
+      <div class="flex justify-between text-xs text-secondary mt-2"><span><%= t(".progress", percent: progress) %></span><span><%= t(".interest_comparison", current: payoff_money(@tracked_entries.sum { |entry| @tracker.interest(entry) }), previous: payoff_money(@tracked_entries.sum { |entry| @tracker.interest(entry, from: Date.current.prev_month.beginning_of_month, to: Date.current.prev_month.end_of_month) })) %></span></div>
+      <% if (gap = @tracker.baseline_gap) %>
+        <% if gap.abs < 0.01 %>
+          <p class="text-sm text-success mt-4"><%= t(".on_track") %></p>
+        <% else %>
+          <p class="text-sm mt-4 <%= gap.negative? ? "text-warning" : "text-success" %>"><%= gap.negative? ? t(".behind", amount: payoff_money(-gap), months: @tracker.baseline_month_delta.abs) : t(".ahead", amount: payoff_money(gap), months: @tracker.baseline_month_delta.abs) %></p>
+        <% end %>
+      <% end %>
+    <% end %>
+
+    <div class="grid grid-cols-1 @3xl:grid-cols-2 gap-4">
+      <%= render DS::Card.new do %>
+        <h2 class="text-base font-medium text-primary"><%= t(".next_move") %></h2>
+        <% target = @current_target_line %>
+        <% if target %>
+          <p class="text-lg text-primary mt-3"><%= target[:name] %></p>
+          <p class="text-sm text-secondary"><%= t(".target_detail", balance: payoff_money(target[:balance]), apr: number_to_percentage(target[:apr] * 100, precision: 2)) %></p>
+        <% else %>
+          <p class="text-sm text-secondary mt-3"><%= t(".no_target") %></p>
+        <% end %>
+        <% if @next_move.next_payday %>
+          <p class="text-2xl font-medium text-primary privacy-sensitive mt-5"><%= payoff_money(@next_move.safe_to_send) %></p>
+          <p class="text-xs text-secondary"><%= t(".safe_to_send", date: l(@next_move.next_payday, format: :long)) %></p>
+          <p class="text-xs text-subdued mt-2"><%= t(".cash_breakdown", cash: payoff_money(@next_move.available_cash), committed: payoff_money(@next_move.committed), float: payoff_money(@plan.cash_float)) %></p>
+          <% @next_move.allocations(@projection).each do |allocation| %>
+            <p class="text-sm text-secondary mt-2"><%= t(".send_to", amount: payoff_money(allocation[:amount]), name: allocation[:name]) %></p>
+          <% end %>
+          <p class="text-xs text-subdued mt-3"><%= t(".verify_balance") %></p>
+        <% else %>
+          <p class="text-sm text-secondary mt-4"><%= t(".configure_payday") %></p>
+        <% end %>
+      <% end %>
+
+      <%= render DS::Card.new do %>
+        <h2 class="text-base font-medium text-primary"><%= t(".timeline") %></h2>
+        <p class="text-xs text-secondary mt-1"><%= t(".timeline_description") %></p>
+        <div class="h-52 mt-4" data-controller="payoff-timeline-chart"
+             data-payoff-timeline-chart-projected-value="<%= @timeline.to_json %>"
+             data-payoff-timeline-chart-actual-value="<%= @actual_timeline.to_json %>"
+             data-payoff-timeline-chart-currency-value="<%= Current.family.primary_currency_code %>"></div>
+      <% end %>
+    </div>
+
+    <%= render DS::Card.new do %>
+      <h2 class="text-base font-medium text-primary mb-4"><%= t(".payoff_order") %></h2>
+      <% if @tracked_entries.empty? %><p class="text-sm text-secondary"><%= t(".no_debts") %></p><% end %>
+      <% @active_entries.sort_by { |entry| [ @line_summary.dig(entry.id, :rank), entry.account.name ] }.each do |entry| %>
+        <% payoff = @line_summary.dig(entry.id, :payoff_month) %>
+        <% stale = entry.account.accountable.is_a?(Loan) && (@last_balance_dates[entry.account_id].nil? || @last_balance_dates[entry.account_id] < 35.days.ago.to_date) %>
+        <div class="py-4 border-b border-divider last:border-0 <%= "bg-success/10 rounded-lg px-3" if @current_target_line&.dig(:account_id) == entry.account_id %>">
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div><h3 class="text-sm font-medium text-primary"><%= entry.account.name %></h3><p class="text-xs text-secondary mt-1"><%= t(".entry_detail", apr: number_to_percentage(entry.apr.to_f, precision: 2), minimum: payoff_money(entry.minimum_payment), payoff: payoff ? payoff_month_date(payoff) : t(".date_pending")) %></p></div>
+            <span class="text-sm font-medium text-primary privacy-sensitive"><%= payoff_money(entry.account.balance) %></span>
+          </div>
+          <div class="h-1.5 bg-container-inset rounded-full overflow-hidden mt-3"><div class="h-full bg-success rounded-full" style="inline-size: <%= payoff_progress(entry) %>%"></div></div>
+          <p class="text-xs text-subdued mt-2"><%= t(".entry_progress", percent: payoff_progress(entry), interest: payoff_money(@line_summary.dig(entry.id, :indexes).sum { |index| @projection.rows.first&.interest&.[](index).to_f })) %></p>
+          <div class="flex flex-wrap gap-2 mt-2">
+            <% if entry.role != "snowball" %><%= render DS::Pill.new(label: t(".roles.#{entry.role}"), size: :sm, marker: false) %><% end %>
+            <% if stale %><%= render DS::Pill.new(label: t(".stale"), tone: :warning, size: :sm, marker: false) %><% end %>
+            <% if stale && @writable_account_ids.include?(entry.account_id) %><%= render DS::Link.new(text: t(".add_valuation"), href: new_valuation_path(account_id: entry.account_id), size: :sm) %><% end %>
+            <% if entry.account.accountable.is_a?(CreditCard) && entry.account.accountable.promo_active? %><%= render DS::Pill.new(label: t(".promo_until", date: l(entry.account.accountable.promo_ends_on, format: :long)), size: :sm, marker: false) %><% end %>
+          </div>
+        </div>
+      <% end %>
+      <% if @paid_off.any? %>
+        <%= render DS::Disclosure.new(title: t(".paid_off", count: @paid_off.size)) do %>
+          <% @paid_off.each do |entry| %>
+            <% celebration = @uncelebrated.find { |event| event.account_id == entry.account_id } %>
+            <%= tag.p class: "text-sm text-success py-1", data: (celebration ? { controller: "payoff-celebration", payoff_celebration_url_value: celebrate_payoff_path(event_id: celebration.id) } : {}) do %>
+              <%= icon("check", size: "sm") %> <%= entry.account.name %>
+              <% if @payoff_dates[entry.account_id] %> · <%= l(@payoff_dates[entry.account_id], format: :long) %><% end %>
+            <% end %>
+          <% end %>
+        <% end %>
+      <% end %>
+    <% end %>
+
+    <% promos = @tracked_entries.select { |entry| entry.account.accountable.is_a?(CreditCard) && entry.account.accountable.promo_active? && entry.account.accountable.promo_balance.to_f.positive? } %>
+    <% if promos.any? %>
+      <%= render DS::Card.new do %>
+        <h2 class="text-base font-medium text-primary mb-3"><%= t(".promo_radar") %></h2>
+        <% promos.each do |entry| %>
+          <% card = entry.account.accountable %>
+          <% promo_due = [ card.promo_balance.to_d, entry.account.balance.to_d ].min %>
+          <% promo_months = [ (card.promo_ends_on.year - Date.current.year) * 12 + card.promo_ends_on.month - Date.current.month, 1 ].max %>
+          <% index = @line_summary.dig(entry.id, :indexes)&.find { |i| @projection.lines[i][:promo] } %>
+          <% clears = index && @projection.payoff_month(index) && @projection.payoff_month(index) <= @projection.lines[index][:promo_last_month] %>
+          <div class="py-3 border-b border-divider last:border-0 flex flex-wrap justify-between gap-2">
+            <div><p class="text-sm font-medium text-primary"><%= entry.account.name %></p><p class="text-xs text-secondary"><%= t(".promo_detail", balance: payoff_money(promo_due), days: card.promo_days_remaining, monthly: payoff_money(promo_due / promo_months)) %></p><p class="text-xs text-subdued"><%= t(".promo_cost", amount: payoff_money(card.promo_deferred_interest_due&.amount || card.promo_reset_monthly_interest&.amount)) %></p></div>
+            <%= render DS::Pill.new(label: clears ? t(".promo_on_track") : t(".promo_at_risk"), tone: clears ? :success : :warning, size: :sm, marker: false) %>
+          </div>
+        <% end %>
+        <p class="text-xs text-subdued mt-3"><%= t(".promo_balance_note") %></p>
+      <% end %>
+    <% end %>
+
+    <div class="grid grid-cols-1 @3xl:grid-cols-2 gap-4">
+      <%= render DS::Card.new do %>
+        <h2 class="text-base font-medium text-primary mb-3"><%= t(".this_month") %></h2>
+        <% @tracked_entries.each do |entry| %>
+          <div class="py-2 border-b border-divider last:border-0 flex justify-between gap-2 text-sm">
+            <span class="text-primary"><%= @tracker.minimum_covered?(entry) ? icon("check-circle", size: "sm", class: "text-success") : icon("circle", size: "sm", class: "text-subdued") %> <%= entry.account.name %></span>
+            <span class="text-secondary privacy-sensitive"><%= t(".monthly_row", paid: payoff_money(@tracker.payments(entry)), minimum: payoff_money(entry.minimum_payment), extra: payoff_money([@tracker.payments(entry) - entry.minimum_payment.to_d, 0].max), interest: payoff_money(@tracker.interest(entry))) %></span>
+          </div>
+        <% end %>
+      <% end %>
+      <%= render DS::Card.new do %>
+        <h2 class="text-base font-medium text-primary mb-3"><%= t(".milestones") %></h2>
+        <% if @events.empty? %><p class="text-sm text-secondary"><%= t(".milestones_empty") %></p><% end %>
+        <% @events.each do |event| %><p class="text-sm text-secondary py-1"><%= icon("check", size: "sm", class: "text-success") %> <%= event.description %> · <%= l(event.occurred_on, format: :long) %></p><% end %>
+      <% end %>
+    </div>
+  <% end %>
+</div>

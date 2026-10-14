@@ -72,3 +72,9 @@ send_bill_reminders:
   class: "BillRemindersJob"
   queue: "scheduled"
   description: "Emails opted-in families a digest of bills that are overdue or coming due soon"
+
+refresh_debt_plans:
+  cron: "30 13 * * *"
+  class: "DebtPlan::DailyJob"
+  queue: "scheduled"
+  description: "Refreshes payoff milestones and due-date reminders"

@@ -1,0 +1,6 @@
+en:
+  debt_plan_mailer:
+    digest:
+      subject: "Your payoff update · %{product_name}"
+      heading: Your payoff update
+      cta: View payoff plan

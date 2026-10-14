@@ -34,3 +34,9 @@ en:
       pending_marker: pending
       runway: "%{months} mo runway · %{pace}/mo"
       all_goals: All goals
+    payoff_card:
+      title: Payoff
+      projected_date: Projected debt-free date
+      progress: "%{percent}% of starting debt repaid"
+      empty: Bring your debts together in one plan and see when they could be paid off.
+      open: View payoff plan
