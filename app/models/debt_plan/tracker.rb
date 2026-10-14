@@ -22,7 +22,18 @@ class DebtPlan::Tracker
   def minimum_covered?(entry)
     return true if entry.minimum_payment.to_d.zero?
 
-    payments(entry) >= entry.minimum_payment.to_d
+    paid = entry.payment_due_day ? payments_for_due(entry, due: next_due_date(entry), to: @on) : payments(entry)
+    paid >= entry.minimum_payment.to_d
+  end
+
+  def next_due_date(entry)
+    due = due_date_in(@on, entry.payment_due_day)
+    due >= @on ? due : due_date_in(@on.next_month, entry.payment_due_day)
+  end
+
+  def payments_for_due(entry, due:, to: due)
+    previous_due = due_date_in(due.prev_month, entry.payment_due_day)
+    payments(entry, from: previous_due + 1, to:)
   end
 
   def actual_total
@@ -33,9 +44,7 @@ class DebtPlan::Tracker
     return nil if @plan.baseline_taken_on.blank? || @plan.baseline_schedule.empty?
     return nil unless @plan.visible_entries(@user).count == @plan.debt_plan_entries.count
 
-    index = (@on.year - @plan.baseline_taken_on.year) * 12 + @on.month - @plan.baseline_taken_on.month
-    expected = @plan.baseline_schedule[[ index, 0 ].max]
-    expected && expected.to_d - actual_total
+    baseline_expected_total - actual_total
   end
 
   def baseline_month_delta
@@ -49,6 +58,24 @@ class DebtPlan::Tracker
   end
 
   private
+    def due_date_in(month, day)
+      Date.new(month.year, month.month, [ day, month.end_of_month.day ].min)
+    end
+
+    def baseline_expected_total
+      schedule = @plan.baseline_schedule
+      start_date = @plan.baseline_taken_on
+      return schedule.first.to_d if @on <= start_date
+
+      index = (@on.year - start_date.year) * 12 + @on.month - start_date.month
+      return schedule.last.to_d if index >= schedule.length - 1
+
+      period_start = index.zero? ? start_date : @on.beginning_of_month - 1
+      period_end = @on.end_of_month
+      progress = (@on - period_start).to_d / (period_end - period_start)
+      schedule[index].to_d + (schedule[index + 1].to_d - schedule[index].to_d) * progress
+    end
+
     def transaction_entries(entry, from:, to:)
       Entry.joins("INNER JOIN transactions ON transactions.id = entries.entryable_id AND entries.entryable_type = 'Transaction'")
         .where(account_id: entry.account_id, date: from..to, excluded: false)

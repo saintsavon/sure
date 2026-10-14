@@ -52,7 +52,7 @@ class DebtPlan::Achievements
       tracker = DebtPlan::Tracker.new(@plan, user: @user, on: month.end_of_month)
       return unless dated.all? do |entry|
         due = Date.new(month.year, month.month, [ entry.payment_due_day, month.end_of_month.day ].min)
-        tracker.payments(entry, from: month, to: due) >= entry.minimum_payment.to_d
+        tracker.payments_for_due(entry, due:) >= entry.minimum_payment.to_d
       end
 
       record_streak("minimums", month)

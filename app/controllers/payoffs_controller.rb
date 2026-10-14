@@ -18,7 +18,7 @@ class PayoffsController < ApplicationController
     end
     @tracker = DebtPlan::Tracker.new(@plan, user: Current.user)
     @next_move = DebtPlan::NextMove.new(@plan, user: Current.user)
-    @minimum_projection = @plan.project(user: Current.user, surplus: 0, lumps: [])
+    @minimum_projection = @plan.project(user: Current.user, surplus: 0, steps: [], lumps: [])
     @interest_avoided = [ @minimum_projection.total_interest - @projection.total_interest, 0 ].max
     @line_summary = @entries.map do |entry|
       indexes = @projection.lines.each_index.select { |index| @projection.lines[index][:entry_id] == entry.id }

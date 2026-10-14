@@ -18,17 +18,20 @@ class DebtPlan::NextMove
     debt_ids = entries.map(&:account_id)
     bills = plan.family.recurring_transactions.bills.accessible_by(user)
       .where(next_expected_date: on..next_payday).to_a
-      .reject { |bill| debt_ids.include?(bill.account_id) || debt_ids.include?(bill.destination_account_id) }
+      .reject { |bill| debt_ids.include?(bill.account_id) }
     bill_amount = bills.sum { |bill| [ bill.display_amount.to_d, 0 ].max }
     tracker = DebtPlan::Tracker.new(plan, user:, on:)
     minimums = entries.sum do |entry|
       next 0 unless entry.payment_due_day
 
-      due = Date.new(on.year, on.month, [ entry.payment_due_day, on.end_of_month.day ].min)
-      due = due.next_month if due < on
+      due = tracker.next_due_date(entry)
       next 0 unless due <= next_payday
 
-      [ entry.minimum_payment.to_d - tracker.payments(entry), 0 ].max
+      scheduled = bills.sum do |bill|
+        bill.destination_account_id == entry.account_id && bill.next_expected_date <= due ?
+          [ bill.display_amount.to_d, 0 ].max : 0
+      end
+      [ entry.minimum_payment.to_d - tracker.payments_for_due(entry, due:, to: on) - scheduled, 0 ].max
     end
     @committed = bill_amount + minimums
     @safe_to_send = [ available_cash - plan.cash_float.to_d - committed, 0 ].max

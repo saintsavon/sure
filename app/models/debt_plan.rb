@@ -76,12 +76,13 @@ class DebtPlan < ApplicationRecord
     result
   end
 
-  def project(user:, on: Date.current, strategy: self.strategy, surplus: monthly_surplus, lumps: debt_plan_lump_sums.to_a)
+  def project(user:, on: Date.current, strategy: self.strategy, surplus: monthly_surplus,
+              steps: surplus_steps, lumps: debt_plan_lump_sums.to_a)
     months = 120
     first_month = on.beginning_of_month
     base = Array.new(months) do |index|
       month = first_month >> index
-      surplus.to_f + surplus_steps.sum { |step| step["from"].to_s <= month.strftime("%Y-%m") ? step["delta"].to_f : 0 }
+      surplus.to_f + steps.sum { |step| step["from"].to_s <= month.strftime("%Y-%m") ? step["delta"].to_f : 0 }
     end
     lump_by_month = Hash.new(0.0)
     scheduled_months = []

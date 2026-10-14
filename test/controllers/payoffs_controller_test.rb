@@ -78,4 +78,18 @@ class PayoffsControllerTest < ActionDispatch::IntegrationTest
     assert_match I18n.t("payoffs.show.promo_radar"), response.body
     assert_match I18n.t("payoffs.show.promo_balance_note"), response.body
   end
+
+  test "interest avoided includes future surplus increases" do
+    post payoff_url
+    plan = @admin.family.debt_plan
+    plan.debt_plan_entries.where.not(account: accounts(:credit_card)).update_all(role: "excluded")
+    plan.update!(monthly_surplus: 0,
+      surplus_steps: [ { "from" => Date.current.next_month.strftime("%Y-%m"), "delta" => 200 } ])
+
+    get payoff_url
+
+    assert_response :success
+    text = Nokogiri::HTML(response.body).at_css("main").text
+    assert_match(/\$[1-9]\d*(?:\.\d{2})? less estimated interest over 10 years than minimums alone/, text)
+  end
 end

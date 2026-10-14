@@ -54,6 +54,65 @@ class DebtPlanTest < ActiveSupport::TestCase
     assert_equal 3700, move.safe_to_send
   end
 
+  test "cash guidance reserves scheduled debt transfers without counting the minimum twice" do
+    @user.family.recurring_transactions.delete_all
+    @plan.update!(cash_account_ids: [ accounts(:depository).id ], cash_float: 1000,
+      payday_anchor_on: Date.new(2026, 10, 9), payday_cadence: "biweekly")
+    entry = @plan.debt_plan_entries.find_by!(account: accounts(:credit_card))
+    entry.update!(minimum_payment_override: 100, payment_due_day: 19)
+    RecurringTransaction.create!(family: @user.family, account: accounts(:depository),
+      destination_account: accounts(:credit_card), name: "Fictional card payment", amount: 250,
+      currency: "USD", expected_day_of_month: 18, last_occurrence_date: Date.new(2026, 9, 18),
+      next_expected_date: Date.new(2026, 10, 18), status: "active", occurrence_count: 1, manual: true)
+
+    move = DebtPlan::NextMove.new(@plan, user: @user, on: Date.new(2026, 10, 14))
+    assert_equal 250, move.committed
+    assert_equal 3750, move.safe_to_send
+
+    entry.update!(payment_due_day: 17)
+    assert_equal 350, DebtPlan::NextMove.new(@plan, user: @user, on: Date.new(2026, 10, 14)).committed
+
+    entry.update!(payment_due_day: nil)
+    assert_equal 250, DebtPlan::NextMove.new(@plan, user: @user, on: Date.new(2026, 10, 14)).committed
+  end
+
+  test "minimum coverage includes payments from the previous due date" do
+    entry = @plan.debt_plan_entries.find_by!(account: accounts(:credit_card))
+    entry.update!(minimum_payment_override: 100, payment_due_day: 1)
+    create_transfer(from_account: accounts(:depository), to_account: accounts(:credit_card),
+      amount: 100, date: Date.new(2026, 9, 30))
+
+    tracker = DebtPlan::Tracker.new(@plan, user: @user, on: Date.new(2026, 10, 1))
+    assert tracker.minimum_covered?(entry)
+    assert_equal 100, tracker.payments_for_due(entry, due: Date.new(2026, 10, 1))
+    assert_not DebtPlan::Tracker.new(@plan, user: @user, on: Date.new(2026, 10, 2)).minimum_covered?(entry)
+  end
+
+  test "baseline comparison interpolates between monthly balances" do
+    owed = @plan.total_owed(user: @user)
+    @plan.update!(baseline_taken_on: Date.new(2026, 10, 1),
+      baseline_schedule: [ owed, owed - 100, owed - 200 ])
+
+    tracker = DebtPlan::Tracker.new(@plan, user: @user, on: Date.new(2026, 10, 16))
+    assert_in_delta(-50, tracker.baseline_gap)
+    assert_in_delta(-100, DebtPlan::Tracker.new(@plan, user: @user,
+      on: Date.new(2026, 10, 31)).baseline_gap)
+
+    @plan.update!(baseline_taken_on: Date.new(2026, 10, 14), baseline_schedule: [ owed, owed - 170 ])
+    assert_in_delta(-80, DebtPlan::Tracker.new(@plan, user: @user,
+      on: Date.new(2026, 10, 22)).baseline_gap)
+  end
+
+  test "minimums only projection ignores future surplus steps" do
+    @plan.debt_plan_entries.where.not(account: accounts(:credit_card)).update_all(role: "excluded")
+    @plan.update!(monthly_surplus: 0, surplus_steps: [ { "from" => "2026-11", "delta" => 200 } ])
+    on = Date.new(2026, 10, 14)
+
+    planned = @plan.project(user: @user, on:)
+    minimums_only = @plan.project(user: @user, on:, surplus: 0, steps: [], lumps: [])
+    assert_operator minimums_only.total_interest, :>, planned.total_interest
+  end
+
   test "monthly payday stays on the month end after February" do
     @plan.update!(payday_anchor_on: Date.new(2026, 1, 31), payday_cadence: "monthly")
 
