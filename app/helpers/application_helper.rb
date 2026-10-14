@@ -114,6 +114,18 @@ module ApplicationHelper
     end
   end
 
+  def payoff_nav_item
+    return if preview_features_enabled?
+
+    {
+      name: t("payoffs.show.title"),
+      path: payoff_path,
+      icon: "trending-down",
+      icon_custom: false,
+      active: page_active?(payoff_path)
+    }
+  end
+
   # Wrapper around I18n.l to support custom date formats
   def format_date(object, format = :default, options = {})
     date = object.to_date

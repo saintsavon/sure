@@ -26,13 +26,15 @@ class BudgetsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "a[href=?]", plan_path, minimum: 1
+    assert_select "nav a[href=?]", payoff_path, count: 0
   end
 
-  test "renders no Plan links without preview features" do
+  test "keeps Budgets and links to Payoff without preview features" do
     get budget_url(Budget.date_to_param(Date.current))
 
     assert_response :success
     assert_select "a[href=?]", plan_path, count: 0
     assert_select "a[href=?]", budgets_path, minimum: 1
+    assert_select "nav a[href=?]", payoff_path, minimum: 1
   end
 end
