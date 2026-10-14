@@ -385,6 +385,14 @@ Rails.application.routes.draw do
 
   # Hub page fronting budgets + goals under a single "Plan" nav entry.
   resource :plan, only: :show
+  resource :payoff, only: [ :show, :create ] do
+    patch :settings, to: "payoff/settings#update"
+    post :baseline, to: "payoff/settings#baseline"
+    post :celebrate, to: "payoff/celebrations#create"
+    post :test_discord, to: "payoff/notifications#test_discord"
+    resources :entries, only: [ :create, :update ], controller: "payoff/entries"
+    resources :lump_sums, only: [ :create, :update, :destroy ], controller: "payoff/lump_sums"
+  end
 
   resources :budgets, only: %i[index show edit update], param: :month_year do
     post :copy_previous, on: :member

@@ -1,0 +1,22 @@
+<%# locals: (plan:, projection:) %>
+<%= render DS::Card.new do %>
+  <div class="flex items-center gap-2 mb-4">
+    <span class="w-7 h-7 rounded-lg bg-surface-inset text-secondary flex items-center justify-center"><%= icon("trending-down", size: "sm") %></span>
+    <h2 class="text-sm font-medium text-primary"><%= t(".title") %></h2>
+  </div>
+  <% if plan %>
+    <p class="text-3xl font-medium text-primary"><%= projection.debt_free_month ? payoff_month_date(projection.debt_free_month) : t("payoffs.show.date_pending") %></p>
+    <p class="text-xs text-secondary mt-1"><%= t(".projected_date") %></p>
+    <% starting = plan.visible_entries(Current.user).reject { |entry| entry.role == "excluded" }.sum { |entry| entry.starting_balance.to_d } %>
+    <% remaining = plan.total_owed(user: Current.user) %>
+    <% progress = starting.positive? ? ((starting - remaining) / starting * 100).clamp(0, 100).round : 0 %>
+    <div class="h-1.5 bg-container-inset rounded-full overflow-hidden mt-5">
+      <div class="h-full bg-success rounded-full" style="inline-size: <%= progress %>%"></div>
+    </div>
+    <p class="text-xs text-subdued mt-2"><%= t(".progress", percent: progress) %></p>
+  <% else %>
+    <p class="text-sm text-secondary flex-1"><%= t(".empty") %></p>
+  <% end %>
+  <%= render DS::Link.new(text: t(".open"), variant: "secondary", href: payoff_path,
+    icon: "chevron-right", icon_position: :right, full_width: true, class: "mt-5") %>
+<% end %>

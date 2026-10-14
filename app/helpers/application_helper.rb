@@ -100,7 +100,7 @@ module ApplicationHelper
         path: plan_path,
         icon: "compass",
         icon_custom: false,
-        active: page_active?(plan_path) || page_active?(budgets_path) || page_active?(goals_path),
+        active: page_active?(plan_path) || page_active?(budgets_path) || page_active?(goals_path) || page_active?(payoff_path),
         preview: true
       }
     else

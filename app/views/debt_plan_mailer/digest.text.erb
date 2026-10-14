@@ -1,0 +1,6 @@
+<%= t(".heading") %>
+
+<% @events.each do |event| %><%= event.description %>
+<% end %>
+
+<%= t(".cta") %>: <%= @payoff_url %>
