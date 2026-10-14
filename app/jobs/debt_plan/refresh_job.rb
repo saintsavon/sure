@@ -9,12 +9,13 @@ class DebtPlan::RefreshJob < ApplicationJob
     return unless user
 
     projection = plan.project(user:)
+    debt_free_month = projection.debt_free_month
     plan.debt_plan_snapshots.find_or_initialize_by(taken_on: Date.current).tap do |snapshot|
       snapshot.total_debt = plan.total_owed(user:)
-      snapshot.projected_debt_free_on = if projection.debt_free_month == 0
+      snapshot.projected_debt_free_on = if debt_free_month == 0
         Date.current
-      elsif projection.debt_free_month
-        Date.current.beginning_of_month >> (projection.debt_free_month - 1)
+      elsif debt_free_month
+        Date.current.beginning_of_month >> (debt_free_month - 1)
       end
       snapshot.projected_total_interest = projection.total_interest.round(2)
       snapshot.payload = { balances: projection.lines.map { |line| [ line[:account_id], line[:balance] ] } }
@@ -33,7 +34,8 @@ class DebtPlan::RefreshJob < ApplicationJob
         card = entry.account.accountable
         if card.is_a?(CreditCard) && card.promo_active? && card.promo_days_remaining <= 30 && card.promo_balance.to_d.positive?
           promo_index = projection.lines.each_index.find { |index| projection.lines[index][:entry_id] == entry.id && projection.lines[index][:promo] }
-          misses = promo_index && (projection.payoff_month(promo_index).nil? || projection.payoff_month(promo_index) > projection.lines[promo_index][:promo_last_month])
+          payoff_month = projection.payoff_month(promo_index) if promo_index
+          misses = promo_index && (payoff_month.nil? || payoff_month > projection.lines[promo_index][:promo_last_month])
           record(plan, "promo_risk", "promo_risk:#{entry.account_id}:#{Date.current.strftime('%Y-%m')}", entry.account) if misses
         end
         next unless entry.payment_due_day && !tracker.minimum_covered?(entry)

@@ -24,7 +24,8 @@ class DebtPlan::Projector
 
   def debt_free_month
     debt_indexes = lines.each_index.reject { |index| lines[index][:savings_goal] || !included?(lines[index]) }
-    debt_indexes.map { |index| payoff_month(index) }.compact.max if debt_indexes.all? { |index| payoff_month(index) }
+    payoff_months = debt_indexes.map { |index| payoff_month(index) }
+    payoff_months.max if payoff_months.all?
   end
 
   def total_interest(months = @months)
