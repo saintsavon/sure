@@ -25,6 +25,14 @@ class DebtPlanTest < ActiveSupport::TestCase
     assert_equal 1000, lines.last[:balance]
   end
 
+  test "projects the remaining balance of a linked emergency goal" do
+    goal = goals(:emergency_fund)
+    @plan.update!(emergency_fund_goal: goal)
+
+    savings_line = @plan.lines(user: @user).find { |line| line[:savings_goal] }
+    assert_in_delta goal.target_amount - goal.current_balance, savings_line[:balance]
+  end
+
   test "cash guidance honors the reserve, minimum and next biweekly payday" do
     @user.family.recurring_transactions.delete_all
     @plan.update!(cash_account_ids: [ accounts(:depository).id ], cash_float: 1000,

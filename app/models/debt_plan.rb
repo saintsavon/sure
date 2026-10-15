@@ -69,7 +69,7 @@ class DebtPlan < ApplicationRecord
     end
 
     if emergency_fund_goal && emergency_fund_goal.currency == family.primary_currency_code
-      gap = [ emergency_fund_goal.target_amount.to_f - emergency_fund_goal.current_balance.amount.to_f, 0.0 ].max
+      gap = [ emergency_fund_goal.target_amount.to_f - emergency_fund_goal.current_balance.to_f, 0.0 ].max
       result << { name: emergency_fund_goal.name, balance: gap, apr: 0.2, minimum: 0,
                   role: "snowball", savings_goal: true, include: true }
     end
